@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v007</title>
+<title>入管提出用変換ツール v008</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c}
@@ -16,8 +16,8 @@
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v007</h1>
-  <div class="small">PC用。学生アプリv030の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容も読み込みます。</div>
+  <h1>入管提出用変換ツール v008</h1>
+  <div class="small">PC用。学生アプリv030以降の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容も読み込みます。</div>
 
   <section class="card">
     <h2>準備</h2>
@@ -39,7 +39,7 @@
 
   <section class="card">
     <h2>2. 集計結果</h2>
-    <div class="small">読み込んだ勤務記録を、年月・アルバイト名・アルバイト内容ごとに集計します。</div>
+    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容は空欄にします。</div>
     <div id="preview"></div>
   </section>
 
@@ -141,27 +141,51 @@ function readJobInfo(wb){
   return map;
 }
 
+function findWorkSheet(wb){
+  // まず「勤務記録」シートを優先して読む。
+  const exact = wb.SheetNames.find(n => String(n).trim() === '勤務記録');
+  if(exact) return {name: exact, sheet: wb.Sheets[exact]};
+  const includes = wb.SheetNames.find(n => String(n).includes('勤務'));
+  if(includes) return {name: includes, sheet: wb.Sheets[includes]};
+  // それでも見つからない場合は、日付・アルバイト名・労働時間を含むシートを探す。
+  for(const name of wb.SheetNames){
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+    for(let i=0;i<Math.min(rows.length,30);i++){
+      const row=rows[i].map(x=>String(x).trim());
+      const hasDate=row.some(x=>x==='日付' || x.includes('日付'));
+      const hasJob=row.some(x=>x.includes('アルバイト名'));
+      const hasHours=row.some(x=>x.includes('労働時間') || x==='時間');
+      if(hasDate && hasJob && hasHours) return {name, sheet: ws};
+    }
+  }
+  return {name: wb.SheetNames[0], sheet: wb.Sheets[wb.SheetNames[0]]};
+}
 function readSheetAsObjects(wb){
   studentInfo=readStudentInfo(wb);
   const jobMap=readJobInfo(wb);
-  const ws = wb.Sheets[wb.SheetNames.find(n=>String(n).includes('勤務')) || wb.SheetNames[0]];
+  const found = findWorkSheet(wb);
+  const ws = found.sheet;
   const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
   let headerRowIndex = -1;
   for(let i=0;i<Math.min(rows.length,30);i++){
     const row=rows[i].map(x=>String(x).trim());
-    if(row.includes('日付') && row.some(x=>x.includes('アルバイト')) && row.some(x=>x.includes('労働時間')||x==='時間')){ headerRowIndex=i; break; }
+    const hasDate=row.some(x=>x==='日付' || x.includes('日付'));
+    const hasJob=row.some(x=>x.includes('アルバイト名'));
+    const hasHours=row.some(x=>x.includes('労働時間') || x==='時間');
+    if(hasDate && hasJob && hasHours){ headerRowIndex=i; break; }
   }
-  if(headerRowIndex<0) throw new Error('勤務記録Excelの見出し行を認識できません。日付・アルバイト名・労働時間の列が必要です。');
+  if(headerRowIndex<0) throw new Error('勤務記録Excelの見出し行を認識できません。シート「勤務記録」に、日付・アルバイト名・労働時間の列が必要です。現在読んだシート：'+found.name);
   const headers = rows[headerRowIndex].map(x=>String(x).trim());
   const findCol=(pred)=>headers.findIndex(h=>pred(h));
   const colDate=findCol(h=>h==='日付' || h.includes('日付'));
   const colNo=findCol(h=>h.includes('アルバイト番号'));
-  const colName=findCol(h=>h.includes('アルバイト名'));
+  const colName=findCol(h=>h==='アルバイト名' || h.includes('アルバイト名'));
   const colContent=findCol(h=>h.includes('アルバイト内容'));
   const colStatus=findCol(h=>h==='状態' || h.includes('状態'));
   const colHours=findCol(h=>h.includes('労働時間') || h==='時間');
   const colJudge=findCol(h=>h.includes('判定'));
-  if(colDate<0 || colName<0 || colHours<0) throw new Error('日付・アルバイト名・労働時間の列を見つけられません。');
+  if(colDate<0 || colName<0 || colHours<0) throw new Error('日付・アルバイト名・労働時間の列を見つけられません。読んだシート：'+found.name+' / 見出し：'+headers.join('、'));
   const data=[];
   for(let r=headerRowIndex+1;r<rows.length;r++){
     const row=rows[r];
@@ -388,7 +412,7 @@ $('makeBtn').onclick = async ()=>{
     const wb=makeNyukanWorkbook();
     const months=[...new Set(summaryRows.map(r=>r.ym))].sort();
     const suffix=months.length?months[0]+'_'+months[months.length-1]:'output';
-    downloadWorkbook(wb, `nyukan_v006_${suffix}.xlsx`);
+    downloadWorkbook(wb, `nyukan_v008_${suffix}.xlsx`);
     status('makeStatus','入管提出用Excelをダウンロードしました。', 'ok');
   }catch(e){ status('makeStatus',e.message,'error'); }
 };
