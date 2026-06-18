@@ -3,250 +3,283 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v003</title>
+<title>入管提出用変換ツール v004</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
-:root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--ok:#1f8a4c;--warn:#c98500;--bad:#c84032;--blue:#2d6cdf}
-*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;font-size:16px}.app{max-width:1100px;margin:auto;padding:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}h1{font-size:22px;margin:6px 0 8px}h2{font-size:18px;margin:0 0 8px}.small{font-size:13px;color:var(--muted)}.notice{background:#fff3d8;border:1px solid #e2bf73;border-radius:12px;padding:10px;margin:8px 0}.error{background:#ffe8e6;border:1px solid #df8b83;color:#8a1f15;border-radius:12px;padding:10px;margin:8px 0;white-space:pre-wrap}.okbox{background:#e8f5ee;border:1px solid #85c8a2;color:#125c32;border-radius:12px;padding:10px;margin:8px 0;white-space:pre-wrap}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:white;font-size:16px}.btn{border:0;border-radius:12px;background:var(--accent);color:white;font-weight:800;padding:11px 14px;font-size:15px;cursor:pointer}.btn.secondary{background:#6b6259}.btn.light{background:#eee4d6;color:var(--ink)}.btn:disabled{opacity:.45;cursor:not-allowed}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:white;margin-top:10px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #ddd;padding:6px;text-align:left;white-space:nowrap}th{background:#6b6259;color:white;position:sticky;top:0}.jobContentRow{display:grid;grid-template-columns:1.5fr 2fr;gap:8px;align-items:end;border-top:1px dashed var(--line);padding-top:8px;margin-top:8px}.statusLine{font-size:13px;color:var(--muted);margin-top:8px}
-@media(max-width:720px){.grid,.grid3,.jobContentRow{grid-template-columns:1fr}.app{padding:10px}}
+  :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;font-size:16px}
+  .app{max-width:980px;margin:auto;padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h1{font-size:22px;margin:4px 0 8px} h2{font-size:17px;margin:0 0 10px}.small{font-size:13px;color:var(--muted);line-height:1.6}.notice{background:#fff3d8;border:1px solid #e2bf73;border-radius:12px;padding:10px;margin:8px 0}
+  input,button{font-size:16px} input[type=file]{width:100%;background:white;border:1px solid var(--line);border-radius:10px;padding:10px}.btn{border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;padding:12px 16px;font-size:16px}.btn.secondary{background:#6b6259}.btn:disabled{opacity:.45}.status{white-space:pre-wrap;background:white;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;min-height:48px}.error{color:var(--bad);font-weight:700}.ok{color:var(--ok);font-weight:700}
+  table{border-collapse:collapse;width:100%;background:white;margin-top:10px;font-size:14px}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#eee4d6}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}code{background:#eee4d6;padding:1px 4px;border-radius:4px}
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v003</h1>
-  <div class="small">PC用。学生が提出した勤務記録Excelを読み込み、月別・アルバイト別に集計して入管提出用Excelを作成します。</div>
+  <h1>入管提出用変換ツール v004</h1>
+  <div class="small">PC用。学生の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。</div>
 
   <section class="card">
-    <h2>1. 勤務記録Excelを読み込む</h2>
-    <input id="fileInput" type="file" accept=".xlsx,.xls">
-    <div class="notice small">対象：学生アプリから出力したExcel（例：arbeit_v029_...xlsx）。読み込み後、下に集計結果が表示されます。</div>
-    <div id="readStatus" class="statusLine">未読込</div>
-  </section>
-
-  <section class="card">
-    <h2>2. 学生情報</h2>
-    <div class="grid3">
-      <div><label>学籍番号</label><input id="studentId" placeholder="例：26-04-555"></div>
-      <div><label>氏名</label><input id="studentName" placeholder="例：YAMADA TARO"></div>
-      <div><label>出力開始年月</label><input id="startYm" placeholder="例：2026.06"></div>
+    <h2>準備</h2>
+    <div class="notice small">
+      このHTMLと同じ場所に、元様式のExcelを <code>template.xlsx</code> という名前で置いてください。<br>
+      GitHub Pagesで使う場合は、同じリポジトリ直下に <code>index.html</code> と <code>template.xlsx</code> を置きます。
     </div>
-    <div class="small">国籍・在留カード番号・資格外活動許可・確認指導状況は、後で学校側が入力する前提で空欄にします。</div>
+    <div class="tools">
+      <button class="btn secondary" id="checkTemplateBtn">template.xlsx を確認</button>
+    </div>
+    <div class="status" id="templateStatus">テンプレート：未確認</div>
   </section>
 
   <section class="card">
-    <h2>3. アルバイト内容</h2>
-    <div class="small">読み込んだアルバイト名ごとに内容を入力できます。空欄でも出力できます。</div>
-    <div id="jobContents"></div>
+    <h2>1. 勤務記録Excelを選択</h2>
+    <input type="file" id="workFile" accept=".xlsx,.xls">
+    <div class="status" id="readStatus">勤務記録：未読込</div>
   </section>
 
   <section class="card">
-    <h2>4. 集計プレビュー</h2>
-    <div id="summaryStatus" class="statusLine">勤務記録Excelを読み込むと表示されます。</div>
-    <div id="preview" class="tableWrap" style="display:none"></div>
+    <h2>2. 集計結果</h2>
+    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容は空欄にします。</div>
+    <div id="preview"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. 入管提出用Excelを作成</h2>
+    <div class="small">テンプレートの罫線・列幅・行高・塗りつぶしをできるだけ保持し、必要行数に合わせて行を作ります。</div>
     <div class="tools">
       <button class="btn" id="makeBtn" disabled>入管提出用Excelをダウンロード</button>
-      <button class="btn light" id="clearBtn">画面をリセット</button>
     </div>
-    <div id="message"></div>
+    <div class="status" id="makeStatus">未作成</div>
   </section>
 </div>
 
 <script>
-let rawRows=[];
-let summaryRows=[];
-let jobNames=[];
-let sourceFileName='';
+let workBook = null;
+let templateBook = null;
+let summaryRows = [];
+let studentInfo = {name:'', id:'', className:''};
 
-function showMessage(text,type='ok'){
-  const el=document.getElementById('message');
-  el.className=type==='error'?'error':'okbox';
-  el.textContent=text;
-}
-function clearMessage(){const el=document.getElementById('message');el.className='';el.textContent=''}
-function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
-function normHeader(s){return String(s??'').replace(/\s/g,'').trim()}
-function parseHours(v){
-  if(v===''||v==null)return 0;
-  if(typeof v==='number')return v;
-  const n=Number(String(v).replace(/時間/g,'').trim());
-  return Number.isFinite(n)?n:0;
-}
-function normalizeDate(v){
-  if(v instanceof Date){
-    const d=new Date(v.getTime()-v.getTimezoneOffset()*60000);return d.toISOString().slice(0,10);
+const $ = (id)=>document.getElementById(id);
+function status(id, msg, cls='') { const el=$(id); el.className = 'status ' + cls; el.textContent = msg; }
+function deepClone(obj){ return obj ? JSON.parse(JSON.stringify(obj)) : obj; }
+function cellAddr(r,c){ return XLSX.utils.encode_cell({r,c}); }
+function getCell(ws,r,c){ return ws[cellAddr(r,c)]; }
+function getVal(ws,r,c){ const cell=getCell(ws,r,c); return cell ? String(cell.v ?? '').trim() : ''; }
+function setCell(ws,r,c,value,styleSource){
+  const addr=cellAddr(r,c);
+  const cell={v:value};
+  if(typeof value==='number') cell.t='n'; else cell.t='s';
+  if(styleSource){
+    if(styleSource.s) cell.s=deepClone(styleSource.s);
+    if(styleSource.z) cell.z=styleSource.z;
   }
-  const s=String(v??'').trim();
-  let m=s.match(/^(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
-  if(m)return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[3])).padStart(2,'0')}`;
-  return s.slice(0,10);
+  ws[addr]=cell;
 }
-function ymFromDate(dateStr){
-  const d=normalizeDate(dateStr);
-  const m=d.match(/^(\d{4})-(\d{2})-/);
-  return m?`${m[1]}.${m[2]}`:'';
+function parseDateLike(v){
+  if(v==null || v==='') return '';
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  if(typeof v==='number'){
+    try{ const d=XLSX.SSF.parse_date_code(v); if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; }catch(e){}
+  }
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+  if(m) return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[3])).padStart(2,'0')}`;
+  return '';
 }
-function readWorkbook(file){
-  clearMessage();
-  sourceFileName=file.name;
-  document.getElementById('readStatus').textContent='読込中...';
-  const reader=new FileReader();
-  reader.onerror=()=>showMessage('ファイルの読み込みに失敗しました。','error');
-  reader.onload=(e)=>{
-    try{
-      if(typeof XLSX==='undefined')throw new Error('Excel読み込みライブラリが読み込まれていません。インターネット接続を確認してください。');
-      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-      const ws=wb.Sheets['勤務記録']||wb.Sheets[wb.SheetNames[0]];
-      if(!ws)throw new Error('シートが見つかりません。');
-      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      if(aoa.length<2)throw new Error('データ行がありません。');
-      const headers=aoa[0].map(normHeader);
-      const need=['日付','アルバイト名','状態','労働時間','直近7日間合計','上限','判定'];
-      const idx={};headers.forEach((h,i)=>idx[h]=i);
-      const missing=need.filter(h=>idx[h]===undefined);
-      if(missing.length)throw new Error('必要な列が見つかりません：'+missing.join('、'));
-      rawRows=[];
-      for(let r=1;r<aoa.length;r++){
-        const row=aoa[r];
-        const date=normalizeDate(row[idx['日付']]);
-        if(!date)continue;
-        rawRows.push({
-          date, ym:ymFromDate(date),
-          job:String(row[idx['アルバイト名']]??'').trim(),
-          status:String(row[idx['状態']]??'').trim(),
-          hours:parseHours(row[idx['労働時間']]),
-          seven:parseHours(row[idx['直近7日間合計']]),
-          limit:parseHours(row[idx['上限']]),
-          judge:String(row[idx['判定']]??'').trim()
-        });
-      }
-      if(!rawRows.length)throw new Error('勤務記録を読み取れませんでした。');
-      buildSummary();
-      renderJobContents();
-      renderPreview();
-      guessStudentInfo(file.name);
-      document.getElementById('readStatus').textContent=`読込済み：${file.name}（${rawRows.length}行）`;
-      document.getElementById('makeBtn').disabled=false;
-      showMessage('勤務記録を読み込みました。集計結果を確認して、必要ならアルバイト内容を入力してください。');
-    }catch(err){
-      document.getElementById('readStatus').textContent='読込失敗';
-      showMessage('読込エラー：'+err.message,'error');
-      document.getElementById('makeBtn').disabled=true;
-    }
-  };
-  reader.readAsArrayBuffer(file);
+function ymFromDate(dateStr){ return dateStr ? dateStr.slice(0,7) : ''; }
+function ymDisplay(ym){ return ym ? ym.replace('-','.') : ''; }
+function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
+function readSheetAsObjects(wb){
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+  let headerRowIndex = -1;
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const row=rows[i].map(x=>String(x).trim());
+    if(row.includes('日付') && row.some(x=>x.includes('アルバイト')) && row.some(x=>x.includes('労働時間')||x==='時間')){ headerRowIndex=i; break; }
+  }
+  if(headerRowIndex<0) throw new Error('勤務記録Excelの見出し行を認識できません。日付・アルバイト名・労働時間の列が必要です。');
+  const headers = rows[headerRowIndex].map(x=>String(x).trim());
+  const findCol=(pred)=>headers.findIndex(h=>pred(h));
+  const colDate=findCol(h=>h==='日付' || h.includes('日付'));
+  const colName=findCol(h=>h.includes('アルバイト名'));
+  const colStatus=findCol(h=>h==='状態' || h.includes('状態'));
+  const colHours=findCol(h=>h.includes('労働時間') || h==='時間');
+  const colJudge=findCol(h=>h.includes('判定'));
+  if(colDate<0 || colName<0 || colHours<0) throw new Error('日付・アルバイト名・労働時間の列を見つけられません。');
+  const data=[];
+  for(let r=headerRowIndex+1;r<rows.length;r++){
+    const row=rows[r];
+    const date=parseDateLike(row[colDate]);
+    const name=String(row[colName]??'').trim();
+    const statusVal=colStatus>=0 ? String(row[colStatus]??'').trim() : '';
+    const hours=num(row[colHours]);
+    const judge=colJudge>=0 ? String(row[colJudge]??'').trim() : '';
+    if(!date || !name || hours<=0) continue;
+    if(statusVal && !['あり','勤務','work'].includes(statusVal) && !statusVal.includes('あり')) continue;
+    data.push({date, ym:ymFromDate(date), name, hours, judge});
+  }
+  // student info fallback from workbook filename cannot be read here, so keep blanks unless future versions add a sheet/cell.
+  return data;
 }
-function guessStudentInfo(name){
-  const m=name.match(/arbeit_[^_]*_([^_]+)_/);
-  if(m && !document.getElementById('studentId').value)document.getElementById('studentId').value=m[1];
-  if(summaryRows.length && !document.getElementById('startYm').value)document.getElementById('startYm').value=summaryRows[0].ym;
-}
-function buildSummary(){
-  const jobsSet=new Set();
+function buildSummary(data){
   const map=new Map();
   const monthOver=new Map();
-  rawRows.forEach(r=>{
-    if(r.job)jobsSet.add(r.job);
-    if(r.judge==='超過')monthOver.set(r.ym,true);
-    if(r.status==='あり' && r.job){
-      const key=r.ym+'|||'+r.job;
-      if(!map.has(key))map.set(key,{ym:r.ym,job:r.job,hours:0});
-      map.get(key).hours+=r.hours;
-    }
-  });
-  jobNames=Array.from(jobsSet).filter(Boolean).sort();
-  const months=Array.from(new Set(rawRows.map(r=>r.ym).filter(Boolean))).sort();
-  summaryRows=[];
-  months.forEach(ym=>{
-    const monthJobs=Array.from(map.values()).filter(x=>x.ym===ym && x.hours>0).sort((a,b)=>a.job.localeCompare(b.job,'ja'));
-    const total=monthJobs.reduce((s,x)=>s+x.hours,0);
-    if(monthJobs.length===0){
-      summaryRows.push({ym,job:'',content:'',jobHours:0,totalHours:0,over:monthOver.get(ym)?'あり':'なし'});
-    }else{
-      monthJobs.forEach((x,i)=>summaryRows.push({ym:i===0?ym:'',ymValue:ym,job:x.job,content:'',jobHours:x.hours,totalHours:i===0?total:'',over:i===0?(monthOver.get(ym)?'あり':'なし'):''}));
-    }
-  });
-}
-function getContentMap(){
-  const map={};
-  document.querySelectorAll('[data-job-content]').forEach(el=>map[el.dataset.jobContent]=el.value.trim());
-  return map;
-}
-function renderJobContents(){
-  const box=document.getElementById('jobContents');box.innerHTML='';
-  if(!jobNames.length){box.innerHTML='<div class="small">アルバイト名が見つかりません。</div>';return}
-  jobNames.forEach(job=>{
-    const div=document.createElement('div');div.className='jobContentRow';
-    div.innerHTML=`<div><label>アルバイト名</label><input value="${esc(job)}" readonly></div><div><label>アルバイト内容</label><input data-job-content="${esc(job)}" placeholder="例：コンビニ店員、飲食店ホール、工場作業"></div>`;
-    box.appendChild(div);
-  });
+  for(const r of data){
+    const key=r.ym+'\t'+r.name;
+    if(!map.has(key)) map.set(key,{ym:r.ym, name:r.name, hours:0});
+    map.get(key).hours += r.hours;
+    if(r.judge.includes('超過')) monthOver.set(r.ym,true);
+  }
+  const rows=[...map.values()].sort((a,b)=>a.ym.localeCompare(b.ym)||a.name.localeCompare(b.name));
+  const totals={};
+  for(const r of rows) totals[r.ym]=(totals[r.ym]||0)+r.hours;
+  return rows.map(r=>({...r, monthTotal:totals[r.ym], over:monthOver.get(r.ym)?'有':'無'}));
 }
 function renderPreview(){
-  const preview=document.getElementById('preview');
-  const contentMap=getContentMap();
-  let html='<table><thead><tr><th>年月</th><th>アルバイト名</th><th>アルバイト内容</th><th>各アルバイト合計時間</th><th>月稼働時間(合計)</th><th>時間超過の有無</th><th>確認・指導状況</th></tr></thead><tbody>';
-  summaryRows.forEach(r=>{
-    const content=contentMap[r.job]||r.content||'';
-    html+=`<tr><td>${esc(r.ym)}</td><td>${esc(r.job)}</td><td>${esc(content)}</td><td>${formatHour(r.jobHours)}</td><td>${formatHour(r.totalHours)}</td><td>${esc(r.over)}</td><td></td></tr>`;
-  });
+  if(summaryRows.length===0){ $('preview').innerHTML='<div class="small">集計データはまだありません。</div>'; return; }
+  let html='<table><thead><tr><th>年月</th><th>アルバイト名</th><th>合計時間</th><th>月合計</th><th>超過</th></tr></thead><tbody>';
+  for(const r of summaryRows) html+=`<tr><td>${ymDisplay(r.ym)}</td><td>${r.name}</td><td>${r.hours.toFixed(1)}</td><td>${r.monthTotal.toFixed(1)}</td><td>${r.over}</td></tr>`;
   html+='</tbody></table>';
-  preview.innerHTML=html;preview.style.display='block';
-  document.getElementById('summaryStatus').textContent=`集計済み：${summaryRows.length}行、アルバイト ${jobNames.length}件`;
+  $('preview').innerHTML=html;
 }
-function formatHour(v){return (v===''||v==null)?'':Number(v).toFixed(1).replace(/\.0$/,'')}
-function styleCell(cell,style){cell.s=Object.assign({},cell.s||{},style)}
-function makeWorkbook(){
-  if(!summaryRows.length)throw new Error('集計データがありません。先に勤務記録Excelを読み込んでください。');
-  const contentMap=getContentMap();
-  const studentId=document.getElementById('studentId').value.trim();
-  const studentName=document.getElementById('studentName').value.trim();
-  const data=[];
-  data.push(['国籍','学籍番号','氏名','在留カード番号','資格外活動の許可の有無','','']);
-  data.push(['',studentId,studentName,'','','','']);
-  data.push(['','','','','','','']);
-  data.push(['年月','アルバイト名','アルバイト内容','各アルバイト合計時間','月稼働時間(合計)','時間超過の有無','確認・指導状況']);
-  summaryRows.forEach(r=>{
-    data.push([r.ym,r.job,contentMap[r.job]||'',r.jobHours?Number(r.jobHours.toFixed(1)):'',r.totalHours?Number(r.totalHours.toFixed(1)):'',r.over,'']);
-  });
-  const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:14},{wch:24},{wch:26},{wch:18},{wch:18},{wch:16},{wch:26}];
-  const headerStyle={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'6B6259'}},alignment:{horizontal:'center'},border:thinBorder()};
-  const subHeader={font:{bold:true},fill:{fgColor:{rgb:'EDE3D4'}},border:thinBorder()};
-  for(let c=0;c<7;c++){
-    const c1=ws[XLSX.utils.encode_cell({r:0,c})]; if(c1)styleCell(c1,headerStyle);
-    const c4=ws[XLSX.utils.encode_cell({r:3,c})]; if(c4)styleCell(c4,headerStyle);
-  }
-  for(let r=1;r<data.length;r++){
-    for(let c=0;c<7;c++){
-      const cell=ws[XLSX.utils.encode_cell({r,c})]; if(cell)styleCell(cell,{border:thinBorder(),alignment:{vertical:'center'}});
+async function loadTemplate(){
+  const res = await fetch('template.xlsx?ts='+Date.now(), {cache:'no-store'});
+  if(!res.ok) throw new Error('template.xlsx が見つかりません。同じフォルダに置いてください。');
+  const arr = await res.arrayBuffer();
+  templateBook = XLSX.read(arr, {type:'array', cellStyles:true, cellDates:true});
+  return templateBook;
+}
+function findTemplateHeader(ws){
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let r=0;r<=Math.min(range.e.r,30);r++){
+    const vals=[];
+    for(let c=0;c<=range.e.c;c++) vals.push(getVal(ws,r,c));
+    const hit = vals.some(v=>v.includes('年月')) + vals.some(v=>v.includes('アルバイト名')) + vals.some(v=>v.includes('アルバイト内容')) + vals.some(v=>v.includes('各アルバイト')) + vals.some(v=>v.includes('月稼働'));
+    if(hit>=3){
+      const find=(pred)=>vals.findIndex(pred);
+      return {
+        row:r,
+        monthCol:find(v=>v.includes('年月')),
+        jobCol:find(v=>v.includes('アルバイト名')),
+        contentCol:find(v=>v.includes('アルバイト内容')),
+        jobHoursCol:find(v=>v.includes('各アルバイト') || v.includes('合計時間')),
+        monthTotalCol:find(v=>v.includes('月稼働')),
+        overCol:find(v=>v.includes('時間超過')),
+        guidanceCol:find(v=>v.includes('確認') || v.includes('指導')),
+        lastCol:range.e.c
+      };
     }
   }
-  for(let r=4;r<data.length;r++){
-    const over=data[r][5];
-    const fill=over==='あり'?'FFC7CE':'FFFFFF';
-    for(let c=0;c<7;c++){const cell=ws[XLSX.utils.encode_cell({r,c})]; if(cell)styleCell(cell,{fill:{fgColor:{rgb:fill}},border:thinBorder()});}
+  throw new Error('template.xlsx の見出し行を認識できません。「年月」「アルバイト名」「アルバイト内容」などの見出しが必要です。');
+}
+function clearBelow(ws, startRow){
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let r=startRow;r<=Math.max(range.e.r,startRow+300);r++){
+    for(let c=0;c<=range.e.c;c++) delete ws[cellAddr(r,c)];
   }
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'資格外活動の把握・一覧表');
+  ws['!merges'] = (ws['!merges']||[]).filter(m=>m.e.r < startRow);
+}
+function copyRowStyles(ws, srcRow, lastCol){
+  const styles=[];
+  for(let c=0;c<=lastCol;c++) styles[c]=deepClone(getCell(ws,srcRow,c));
+  return styles;
+}
+function makeNyukanWorkbook(){
+  if(!templateBook) throw new Error('template.xlsx が読み込まれていません。');
+  if(summaryRows.length===0) throw new Error('集計データがありません。勤務記録Excelを読み込んでください。');
+  const wb = XLSX.utils.book_new();
+  const srcSheetName = templateBook.SheetNames[0];
+  const src = templateBook.Sheets[srcSheetName];
+  const ws = deepClone(src);
+  const header = findTemplateHeader(ws);
+  const dataStart = header.row + 1;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const lastCol = Math.max(range.e.c, header.lastCol);
+  const styleRows = [0,1,2].map(i=>copyRowStyles(ws, dataStart+i, lastCol));
+  const rowHeights = [];
+  for(let i=0;i<3;i++) rowHeights[i] = ws['!rows'] && ws['!rows'][dataStart+i] ? deepClone(ws['!rows'][dataStart+i]) : undefined;
+
+  clearBelow(ws, dataStart);
+
+  const byMonth = new Map();
+  for(const r of summaryRows){ if(!byMonth.has(r.ym)) byMonth.set(r.ym, []); byMonth.get(r.ym).push(r); }
+  let outRow = dataStart;
+  const newMerges = ws['!merges'] || [];
+
+  for(const [ym, rows] of byMonth.entries()){
+    const startRow = outRow;
+    const blockRows = Math.max(1, rows.length);
+    for(let i=0;i<blockRows;i++){
+      const style = styleRows[i % styleRows.length];
+      for(let c=0;c<=lastCol;c++){
+        if(style[c]) setCell(ws,outRow,c,'',style[c]);
+      }
+      if(ws['!rows']) ws['!rows'][outRow] = rowHeights[i % rowHeights.length] ? deepClone(rowHeights[i % rowHeights.length]) : undefined;
+      const rec = rows[i];
+      if(rec){
+        if(header.monthCol>=0) setCell(ws,outRow,header.monthCol,i===0?ymDisplay(ym):'',style[header.monthCol]);
+        if(header.jobCol>=0) setCell(ws,outRow,header.jobCol,rec.name,style[header.jobCol]);
+        if(header.contentCol>=0) setCell(ws,outRow,header.contentCol,'',style[header.contentCol]);
+        if(header.jobHoursCol>=0) setCell(ws,outRow,header.jobHoursCol,Number(rec.hours.toFixed(1)),style[header.jobHoursCol]);
+        if(header.monthTotalCol>=0) setCell(ws,outRow,header.monthTotalCol,i===0?Number(rec.monthTotal.toFixed(1)):'',style[header.monthTotalCol]);
+        if(header.overCol>=0) setCell(ws,outRow,header.overCol,i===0?rec.over:'',style[header.overCol]);
+        if(header.guidanceCol>=0) setCell(ws,outRow,header.guidanceCol,'',style[header.guidanceCol]);
+      }
+      outRow++;
+    }
+    const endRow = outRow-1;
+    // Merge month/monthTotal/over/guidance cells per month block, when there are multiple rows.
+    if(endRow>startRow){
+      [header.monthCol, header.monthTotalCol, header.overCol, header.guidanceCol].forEach(c=>{
+        if(c>=0) newMerges.push({s:{r:startRow,c}, e:{r:endRow,c}});
+      });
+    }
+  }
+  ws['!merges'] = newMerges;
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:Math.max(outRow-1, header.row), c:lastCol}});
+  XLSX.utils.book_append_sheet(wb, ws, srcSheetName || '資格外活動の把握・一覧表');
   return wb;
 }
-function thinBorder(){return {top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}}}
-function downloadWorkbook(){
-  clearMessage();
-  try{
-    if(typeof XLSX==='undefined')throw new Error('Excel作成ライブラリが読み込まれていません。');
-    const wb=makeWorkbook();
-    const id=document.getElementById('studentId').value.trim()||'noid';
-    const start=document.getElementById('startYm').value.trim().replace(/[\.\/]/g,'-')||'summary';
-    XLSX.writeFile(wb,`nyukan_${id}_${start}.xlsx`);
-    showMessage('入管提出用Excelを作成しました。ダウンロードフォルダを確認してください。');
-  }catch(err){showMessage('作成エラー：'+err.message,'error')}
-}
-function resetAll(){rawRows=[];summaryRows=[];jobNames=[];sourceFileName='';document.getElementById('fileInput').value='';document.getElementById('jobContents').innerHTML='';document.getElementById('preview').style.display='none';document.getElementById('preview').innerHTML='';document.getElementById('readStatus').textContent='未読込';document.getElementById('summaryStatus').textContent='勤務記録Excelを読み込むと表示されます。';document.getElementById('makeBtn').disabled=true;clearMessage();}
+function downloadWorkbook(wb, filename){ XLSX.writeFile(wb, filename, {bookType:'xlsx'}); }
 
-document.getElementById('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(f)readWorkbook(f)});
-document.getElementById('makeBtn').addEventListener('click',downloadWorkbook);
-document.getElementById('clearBtn').addEventListener('click',resetAll);
-document.getElementById('jobContents').addEventListener('input',renderPreview);
+$('checkTemplateBtn').onclick = async ()=>{
+  status('templateStatus','template.xlsx を読み込み中...');
+  try{
+    await loadTemplate();
+    const ws=templateBook.Sheets[templateBook.SheetNames[0]];
+    const h=findTemplateHeader(ws);
+    status('templateStatus',`template.xlsx を読み込みました。\nシート：${templateBook.SheetNames[0]}\n見出し行：${h.row+1}行目`, 'ok');
+  }catch(e){ status('templateStatus',e.message,'error'); }
+};
+
+$('workFile').onchange = async (ev)=>{
+  const file=ev.target.files[0];
+  if(!file) return;
+  status('readStatus','勤務記録Excelを読み込み中...');
+  try{
+    const arr=await file.arrayBuffer();
+    workBook=XLSX.read(arr,{type:'array',cellDates:true});
+    const raw=readSheetAsObjects(workBook);
+    summaryRows=buildSummary(raw);
+    renderPreview();
+    $('makeBtn').disabled = summaryRows.length===0;
+    status('readStatus',`読み込み成功：勤務記録 ${raw.length}件、集計 ${summaryRows.length}件。`, 'ok');
+  }catch(e){ summaryRows=[]; renderPreview(); $('makeBtn').disabled=true; status('readStatus',e.message,'error'); }
+};
+
+$('makeBtn').onclick = async ()=>{
+  status('makeStatus','入管提出用Excelを作成中...');
+  try{
+    if(!templateBook) await loadTemplate();
+    const wb=makeNyukanWorkbook();
+    const months=[...new Set(summaryRows.map(r=>r.ym))].sort();
+    const suffix=months.length?months[0]+'_'+months[months.length-1]:'output';
+    downloadWorkbook(wb, `nyukan_${suffix}.xlsx`);
+    status('makeStatus','入管提出用Excelをダウンロードしました。', 'ok');
+  }catch(e){ status('makeStatus',e.message,'error'); }
+};
+
+renderPreview();
 </script>
 </body>
 </html>
