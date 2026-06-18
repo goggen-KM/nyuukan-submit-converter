@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v008</title>
+<title>入管提出用変換ツール v009</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c}
@@ -16,8 +16,8 @@
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v008</h1>
-  <div class="small">PC用。学生アプリv030以降の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容も読み込みます。</div>
+  <h1>入管提出用変換ツール v009</h1>
+  <div class="small">PC用。学生アプリv030以降の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容・締め日も読み込み、入管提出用シートと締め日別集計シートを作成します。</div>
 
   <section class="card">
     <h2>準備</h2>
@@ -39,7 +39,7 @@
 
   <section class="card">
     <h2>2. 集計結果</h2>
-    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容は空欄にします。</div>
+    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容と締め日は、学生側Excelの「アルバイト情報」シートから読み込みます。</div>
     <div id="preview"></div>
   </section>
 
@@ -57,6 +57,7 @@
 let workBook = null;
 let templateBook = null;
 let summaryRows = [];
+let rawDataForClosing = [];
 let studentInfo = {name:'', id:'', className:''};
 
 const $ = (id)=>document.getElementById(id);
@@ -130,13 +131,15 @@ function readJobInfo(wb){
   const idxNo=headers.findIndex(h=>h.includes('番号'));
   const idxName=headers.findIndex(h=>h.includes('アルバイト名'));
   const idxContent=headers.findIndex(h=>h.includes('内容'));
+  const idxClose=headers.findIndex(h=>h.includes('締め日'));
   for(let r=1;r<rows.length;r++){
     const row=rows[r];
     const no=Number(row[idxNo]);
     const name=idxName>=0?String(row[idxName]??'').trim():'';
     const content=idxContent>=0?String(row[idxContent]??'').trim():'';
-    if(Number.isFinite(no)&&no>0) map.set(no,{name,content});
-    if(name) map.set(name,{name,content});
+    const closeDay=idxClose>=0?String(row[idxClose]??'').trim():'';
+    if(Number.isFinite(no)&&no>0) map.set(no,{name,content,closeDay});
+    if(name) map.set(name,{name,content,closeDay});
   }
   return map;
 }
@@ -203,7 +206,11 @@ function readSheetAsObjects(wb){
     }
     if(!date || !name || hours<=0) continue;
     if(statusVal && !['あり','勤務','work'].includes(statusVal) && !statusVal.includes('あり')) continue;
-    data.push({date, ym:ymFromDate(date), name, content, hours, judge});
+    let closeDay='';
+    const byNo2=Number.isFinite(no)?jobMap.get(no):null;
+    const byName2=name?jobMap.get(name):null;
+    closeDay=(byNo2&&byNo2.closeDay)||(byName2&&byName2.closeDay)||'';
+    data.push({date, ym:ymFromDate(date), name, content, closeDay, hours, judge});
   }
   return data;
 }
@@ -335,6 +342,68 @@ function buildFixedTemplateSheet(){
   ws['!merges']=[];
   return ws;
 }
+
+function daysInMonth(y,m){return new Date(y,m,0).getDate()}
+function clampCloseDate(year,month,closeDay){
+  const d=Number(closeDay);
+  const last=daysInMonth(year,month);
+  const day=Number.isFinite(d)&&d>0?Math.min(d,last):last;
+  return new Date(year,month-1,day);
+}
+function nextDayIso(d){const x=new Date(d);x.setDate(x.getDate()+1);return isoDate(x)}
+function isoDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function parseIsoDate(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d)}
+function ymFromDateObj(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function monthSpanFromData(data){
+  const dates=data.map(r=>r.date).filter(Boolean).sort();
+  if(!dates.length)return [];
+  let start=parseIsoDate(dates[0]), end=parseIsoDate(dates[dates.length-1]);
+  start=new Date(start.getFullYear(),start.getMonth(),1);
+  end=new Date(end.getFullYear(),end.getMonth(),1);
+  const out=[];
+  for(let d=new Date(start);d<=end;d.setMonth(d.getMonth()+1)) out.push({year:d.getFullYear(),month:d.getMonth()+1,ym:ymFromDateObj(d)});
+  return out;
+}
+function buildClosingSummary(data){
+  const jobs=new Map();
+  for(const r of data){
+    const key=r.name+'\t'+(r.content||'')+'\t'+(r.closeDay||'');
+    if(!jobs.has(key))jobs.set(key,{name:r.name,content:r.content||'',closeDay:r.closeDay||'',records:[]});
+    jobs.get(key).records.push(r);
+  }
+  const months=monthSpanFromData(data);
+  const out=[];
+  for(const job of jobs.values()){
+    const cd=Number(job.closeDay);
+    if(!Number.isFinite(cd)||cd<1||cd>31){
+      out.push({name:job.name,content:job.content,closeDay:job.closeDay||'未設定',periodLabel:'締め日未設定',start:'',end:'',hours:null});
+      continue;
+    }
+    for(const m of months){
+      const endD=clampCloseDate(m.year,m.month,cd);
+      const prevMonthDate=new Date(m.year,m.month-2,1);
+      const prevClose=clampCloseDate(prevMonthDate.getFullYear(),prevMonthDate.getMonth()+1,cd);
+      const startIso=nextDayIso(prevClose), endIso=isoDate(endD);
+      let sum=0;
+      for(const r of job.records){ if(r.date>=startIso && r.date<=endIso) sum+=r.hours; }
+      // 0時間期間も期間確認のため出す
+      out.push({name:job.name,content:job.content,closeDay:cd,start:startIso,end:endIso,periodLabel:startIso+'〜'+endIso,hours:sum});
+    }
+  }
+  return out.sort((a,b)=>a.name.localeCompare(b.name)||String(a.start).localeCompare(String(b.start)));
+}
+function appendClosingSheet(wb,data){
+  const rows=[['アルバイト名','アルバイト内容','締め日','集計期間','開始日','終了日','合計時間']];
+  for(const r of buildClosingSummary(data)) rows.push([r.name,r.content,r.closeDay,r.periodLabel,r.start,r.end,r.hours==null?'':Number(r.hours.toFixed(1))]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:22},{wch:28},{wch:8},{wch:24},{wch:12},{wch:12},{wch:10}];
+  const head={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'6B6259'}},alignment:{horizontal:'center'},border:{top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}}};
+  const cellStyle={alignment:{horizontal:'center'},border:{top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}}};
+  for(let c=0;c<rows[0].length;c++){const cell=ws[XLSX.utils.encode_cell({r:0,c})]; if(cell)cell.s=head;}
+  for(let r=1;r<rows.length;r++)for(let c=0;c<rows[0].length;c++){const cell=ws[XLSX.utils.encode_cell({r,c})]; if(cell)cell.s=cellStyle; if(c===6&&cell&&typeof cell.v==='number')cell.z='0.0';}
+  XLSX.utils.book_append_sheet(wb,ws,'締め日別集計');
+}
+
 function makeNyukanWorkbook(){
   if(!templateBook) throw new Error('template.xlsx が読み込まれていません。');
   if(summaryRows.length===0) throw new Error('集計データがありません。勤務記録Excelを読み込んでください。');
@@ -376,6 +445,7 @@ function makeNyukanWorkbook(){
   // Basic page setup for print use.
   ws['!margins']={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  appendClosingSheet(wb, rawDataForClosing);
   return wb;
 }
 function downloadWorkbook(wb, filename){ XLSX.writeFile(wb, filename, {bookType:'xlsx'}); }
@@ -398,6 +468,7 @@ $('workFile').onchange = async (ev)=>{
     const arr=await file.arrayBuffer();
     workBook=XLSX.read(arr,{type:'array',cellDates:true});
     const raw=readSheetAsObjects(workBook);
+    rawDataForClosing=raw;
     summaryRows=buildSummary(raw);
     renderPreview();
     $('makeBtn').disabled = summaryRows.length===0;
@@ -412,7 +483,7 @@ $('makeBtn').onclick = async ()=>{
     const wb=makeNyukanWorkbook();
     const months=[...new Set(summaryRows.map(r=>r.ym))].sort();
     const suffix=months.length?months[0]+'_'+months[months.length-1]:'output';
-    downloadWorkbook(wb, `nyukan_v008_${suffix}.xlsx`);
+    downloadWorkbook(wb, `nyukan_v009_${suffix}.xlsx`);
     status('makeStatus','入管提出用Excelをダウンロードしました。', 'ok');
   }catch(e){ status('makeStatus',e.message,'error'); }
 };
