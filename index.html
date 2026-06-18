@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v005</title>
+<title>入管提出用変換ツール v007</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c}
@@ -16,8 +16,8 @@
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v005</h1>
-  <div class="small">PC用。学生の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。</div>
+  <h1>入管提出用変換ツール v007</h1>
+  <div class="small">PC用。学生アプリv030の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容も読み込みます。</div>
 
   <section class="card">
     <h2>準備</h2>
@@ -39,13 +39,13 @@
 
   <section class="card">
     <h2>2. 集計結果</h2>
-    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容は空欄にします。</div>
+    <div class="small">読み込んだ勤務記録を、年月・アルバイト名・アルバイト内容ごとに集計します。</div>
     <div id="preview"></div>
   </section>
 
   <section class="card">
     <h2>3. 入管提出用Excelを作成</h2>
-    <div class="small">テンプレートの罫線・列幅・行高・塗りつぶしをできるだけ保持し、必要行数に合わせて行を作ります。時間は「15.0」のような数値で出力します。</div>
+    <div class="small">テンプレートの罫線・列幅・行高・塗りつぶしをテンプレートの見出し色・罫線・列幅・行高を再現し、必要行数に合わせて行を作ります。時間は「15.0」のような数値で出力します。</div>
     <div class="tools">
       <button class="btn" id="makeBtn" disabled>入管提出用Excelをダウンロード</button>
     </div>
@@ -105,8 +105,46 @@ function parseDateLike(v){
 function ymFromDate(dateStr){ return dateStr ? dateStr.slice(0,7) : ''; }
 function ymDisplay(ym){ return ym ? ym.replace('-','.') : ''; }
 function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
+
+function readStudentInfo(wb){
+  const info={name:'', id:'', className:''};
+  const sn=wb.SheetNames.find(n=>String(n).includes('学生'));
+  if(!sn) return info;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
+  for(const row of rows){
+    const k=String(row[0]??'').trim();
+    const v=String(row[1]??'').trim();
+    if(k.includes('氏名')) info.name=v;
+    if(k.includes('学籍')) info.id=v;
+    if(k.includes('クラス')) info.className=v;
+  }
+  return info;
+}
+function readJobInfo(wb){
+  const map=new Map();
+  const sn=wb.SheetNames.find(n=>String(n).includes('アルバイト'));
+  if(!sn) return map;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
+  if(!rows.length) return map;
+  const headers=rows[0].map(x=>String(x).trim());
+  const idxNo=headers.findIndex(h=>h.includes('番号'));
+  const idxName=headers.findIndex(h=>h.includes('アルバイト名'));
+  const idxContent=headers.findIndex(h=>h.includes('内容'));
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    const no=Number(row[idxNo]);
+    const name=idxName>=0?String(row[idxName]??'').trim():'';
+    const content=idxContent>=0?String(row[idxContent]??'').trim():'';
+    if(Number.isFinite(no)&&no>0) map.set(no,{name,content});
+    if(name) map.set(name,{name,content});
+  }
+  return map;
+}
+
 function readSheetAsObjects(wb){
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  studentInfo=readStudentInfo(wb);
+  const jobMap=readJobInfo(wb);
+  const ws = wb.Sheets[wb.SheetNames.find(n=>String(n).includes('勤務')) || wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
   let headerRowIndex = -1;
   for(let i=0;i<Math.min(rows.length,30);i++){
@@ -117,7 +155,9 @@ function readSheetAsObjects(wb){
   const headers = rows[headerRowIndex].map(x=>String(x).trim());
   const findCol=(pred)=>headers.findIndex(h=>pred(h));
   const colDate=findCol(h=>h==='日付' || h.includes('日付'));
+  const colNo=findCol(h=>h.includes('アルバイト番号'));
   const colName=findCol(h=>h.includes('アルバイト名'));
+  const colContent=findCol(h=>h.includes('アルバイト内容'));
   const colStatus=findCol(h=>h==='状態' || h.includes('状態'));
   const colHours=findCol(h=>h.includes('労働時間') || h==='時間');
   const colJudge=findCol(h=>h.includes('判定'));
@@ -126,23 +166,29 @@ function readSheetAsObjects(wb){
   for(let r=headerRowIndex+1;r<rows.length;r++){
     const row=rows[r];
     const date=parseDateLike(row[colDate]);
+    const no=colNo>=0?Number(row[colNo]):NaN;
     const name=String(row[colName]??'').trim();
     const statusVal=colStatus>=0 ? String(row[colStatus]??'').trim() : '';
     const hours=num(row[colHours]);
     const judge=colJudge>=0 ? String(row[colJudge]??'').trim() : '';
+    let content=colContent>=0?String(row[colContent]??'').trim():'';
+    if(!content){
+      const byNo=Number.isFinite(no)?jobMap.get(no):null;
+      const byName=name?jobMap.get(name):null;
+      content=(byNo&&byNo.content)||(byName&&byName.content)||'';
+    }
     if(!date || !name || hours<=0) continue;
     if(statusVal && !['あり','勤務','work'].includes(statusVal) && !statusVal.includes('あり')) continue;
-    data.push({date, ym:ymFromDate(date), name, hours, judge});
+    data.push({date, ym:ymFromDate(date), name, content, hours, judge});
   }
-  // student info fallback from workbook filename cannot be read here, so keep blanks unless future versions add a sheet/cell.
   return data;
 }
 function buildSummary(data){
   const map=new Map();
   const monthOver=new Map();
   for(const r of data){
-    const key=r.ym+'\t'+r.name;
-    if(!map.has(key)) map.set(key,{ym:r.ym, name:r.name, hours:0});
+    const key=r.ym+'\t'+r.name+'\t'+(r.content||'');
+    if(!map.has(key)) map.set(key,{ym:r.ym, name:r.name, content:r.content||'', hours:0});
     map.get(key).hours += r.hours;
     if(r.judge.includes('超過')) monthOver.set(r.ym,true);
   }
@@ -153,8 +199,8 @@ function buildSummary(data){
 }
 function renderPreview(){
   if(summaryRows.length===0){ $('preview').innerHTML='<div class="small">集計データはまだありません。</div>'; return; }
-  let html='<table><thead><tr><th>年月</th><th>アルバイト名</th><th>合計時間</th><th>月合計</th><th>超過</th></tr></thead><tbody>';
-  for(const r of summaryRows) html+=`<tr><td>${ymDisplay(r.ym)}</td><td>${r.name}</td><td>${r.hours.toFixed(1)}</td><td>${r.monthTotal.toFixed(1)}</td><td>${r.over}</td></tr>`;
+  let html='<table><thead><tr><th>年月</th><th>アルバイト名</th><th>アルバイト内容</th><th>合計時間</th><th>月合計</th><th>超過</th></tr></thead><tbody>';
+  for(const r of summaryRows) html+=`<tr><td>${ymDisplay(r.ym)}</td><td>${r.name}</td><td>${r.content||''}</td><td>${r.hours.toFixed(1)}</td><td>${r.monthTotal.toFixed(1)}</td><td>${r.over}</td></tr>`;
   html+='</tbody></table>';
   $('preview').innerHTML=html;
 }
@@ -200,60 +246,112 @@ function copyRowStyles(ws, srcRow, lastCol){
   for(let c=0;c<=lastCol;c++) styles[c]=deepClone(getCell(ws,srcRow,c));
   return styles;
 }
+
+function makeStyle(fillColor='', bold=false, fontColor='000000', align='center', wrap=true, numFmt=''){
+  const st={
+    font:{name:'Yu Gothic', sz:10, bold:bold, color:{rgb:fontColor}},
+    alignment:{horizontal:align, vertical:'center', wrapText:wrap},
+    border:{
+      top:{style:'thin',color:{rgb:'000000'}},
+      bottom:{style:'thin',color:{rgb:'000000'}},
+      left:{style:'thin',color:{rgb:'000000'}},
+      right:{style:'thin',color:{rgb:'000000'}}
+    }
+  };
+  if(fillColor) st.fill={patternType:'solid', fgColor:{rgb:fillColor}};
+  if(numFmt) st.numFmt=numFmt;
+  return st;
+}
+const STYLE = {
+  topHeader: makeStyle('EAF3F8', true, '000000', 'center', true),
+  topValue: makeStyle('', false, '000000', 'center', true),
+  spacer: makeStyle('', false, '000000', 'center', true),
+  tableHeaderMain: makeStyle('0E2841', true, 'FFFFFF', 'center', true),
+  tableHeaderSub: makeStyle('A02B93', true, 'FFFFFF', 'center', true),
+  data: makeStyle('', false, '000000', 'center', true),
+  dataLeft: makeStyle('', false, '000000', 'left', true),
+  dataHours: makeStyle('', false, '000000', 'center', true, '0.0')
+};
+function setStyledCell(ws,r,c,value,style,numFmt=''){
+  const addr=cellAddr(r,c);
+  const cell={v:value==null?'':value};
+  if(typeof value==='number') cell.t='n'; else cell.t='s';
+  cell.s=deepClone(style||STYLE.data);
+  if(numFmt){ cell.z=numFmt; cell.s.numFmt=numFmt; }
+  ws[addr]=cell;
+}
+function copyTemplateColsAndRows(src, ws){
+  if(src && src['!cols']) ws['!cols']=deepClone(src['!cols']).slice(0,7);
+  else ws['!cols']=[{wch:17},{wch:22},{wch:22},{wch:22},{wch:22},{wch:18},{wch:36}];
+  if(src && src['!rows']) ws['!rows']=deepClone(src['!rows']);
+  else ws['!rows']=[];
+  // Ensure row heights are readable even when the template does not expose them.
+  ws['!rows'][0]=ws['!rows'][0]||{hpt:34};
+  ws['!rows'][1]=ws['!rows'][1]||{hpt:28};
+  ws['!rows'][3]=ws['!rows'][3]||{hpt:38};
+}
+function getTemplateTopValue(src,r,c, fallback){
+  const v=src ? getVal(src,r,c) : '';
+  return v || fallback;
+}
+function buildFixedTemplateSheet(){
+  const src = templateBook ? templateBook.Sheets[templateBook.SheetNames[0]] : null;
+  const ws={};
+  copyTemplateColsAndRows(src, ws);
+  // Top student-info block.  Keep the headings from template when present; row 2 is left blank for later school-side entry.
+  const topFallback=['国籍コクセキ','学籍番号ガクセキバンゴウ','氏名シメイ','在留カード番号ザイリュウバンゴウ','資格外活動の許可の有無シカクガイカツドウキョカウム'];
+  for(let c=0;c<5;c++){
+    setStyledCell(ws,0,c,getTemplateTopValue(src,0,c,topFallback[c]),STYLE.topHeader);
+    setStyledCell(ws,1,c,(c===1?studentInfo.id:(c===2?studentInfo.name:'')),STYLE.topValue);
+  }
+  for(let c=0;c<6;c++) setStyledCell(ws,2,c,'',STYLE.spacer);
+  const headers=['年月ネンゲツ','アルバイト名メイ','アルバイト内容ナイヨウ','各アルバイト合計時間カクゴウケイジカン','月稼働時間(合計)ツキカドウジカンゴウケイ','時間超過の有無ジカンチョウカウム','確認・指導状況カクニンシドウジョウキョウ'];
+  for(let c=0;c<7;c++) setStyledCell(ws,3,c,getTemplateTopValue(src,3,c,headers[c]), c>=5?STYLE.tableHeaderSub:STYLE.tableHeaderMain);
+  ws['!ref']='A1:G4';
+  ws['!merges']=[];
+  return ws;
+}
 function makeNyukanWorkbook(){
   if(!templateBook) throw new Error('template.xlsx が読み込まれていません。');
   if(summaryRows.length===0) throw new Error('集計データがありません。勤務記録Excelを読み込んでください。');
   const wb = XLSX.utils.book_new();
-  const srcSheetName = templateBook.SheetNames[0];
-  const src = templateBook.Sheets[srcSheetName];
-  const ws = deepClone(src);
-  const header = findTemplateHeader(ws);
-  const dataStart = header.row + 1;
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const lastCol = Math.max(range.e.c, header.lastCol);
-  const styleRows = [0,1,2].map(i=>copyRowStyles(ws, dataStart+i, lastCol));
-  const rowHeights = [];
-  for(let i=0;i<3;i++) rowHeights[i] = ws['!rows'] && ws['!rows'][dataStart+i] ? deepClone(ws['!rows'][dataStart+i]) : undefined;
-
-  clearBelow(ws, dataStart);
-
+  const ws = buildFixedTemplateSheet();
+  const sheetName = templateBook.SheetNames[0] || '資格外活動の把握・一覧表';
   const byMonth = new Map();
   for(const r of summaryRows){ if(!byMonth.has(r.ym)) byMonth.set(r.ym, []); byMonth.get(r.ym).push(r); }
-  let outRow = dataStart;
-  const newMerges = ws['!merges'] || [];
-
+  let outRow = 4; // 0-based row 5
+  const merges=[];
   for(const [ym, rows] of byMonth.entries()){
-    const startRow = outRow;
-    const blockRows = Math.max(1, rows.length);
+    const startRow=outRow;
+    const blockRows=Math.max(3, rows.length);
     for(let i=0;i<blockRows;i++){
-      const style = styleRows[i % styleRows.length];
-      for(let c=0;c<=lastCol;c++){
-        if(style[c]) setCell(ws,outRow,c,'',style[c]);
-      }
-      if(ws['!rows']) ws['!rows'][outRow] = rowHeights[i % rowHeights.length] ? deepClone(rowHeights[i % rowHeights.length]) : undefined;
-      const rec = rows[i];
-      if(rec){
-        if(header.monthCol>=0) setCell(ws,outRow,header.monthCol,i===0?ymDisplay(ym):'',style[header.monthCol]);
-        if(header.jobCol>=0) setCell(ws,outRow,header.jobCol,rec.name,style[header.jobCol]);
-        if(header.contentCol>=0) setCell(ws,outRow,header.contentCol,'',style[header.contentCol]);
-        if(header.jobHoursCol>=0) setCell(ws,outRow,header.jobHoursCol,Number(rec.hours.toFixed(1)),style[header.jobHoursCol],'0.0');
-        if(header.monthTotalCol>=0) setCell(ws,outRow,header.monthTotalCol,i===0?Number(rec.monthTotal.toFixed(1)):'',style[header.monthTotalCol], i===0?'0.0':'');
-        if(header.overCol>=0) setCell(ws,outRow,header.overCol,i===0?rec.over:'',style[header.overCol]);
-        if(header.guidanceCol>=0) setCell(ws,outRow,header.guidanceCol,'',style[header.guidanceCol]);
-      }
+      const rec=rows[i];
+      const showMonth=i===0?ymDisplay(ym):'';
+      const showTotal=i===0&&rows[0]?Number(rows[0].monthTotal.toFixed(1)):'';
+      const showOver=i===0&&rows[0]?rows[0].over:'';
+      setStyledCell(ws,outRow,0,showMonth,STYLE.data);
+      setStyledCell(ws,outRow,1,rec?rec.name:(i===0?'①':i===1?'②':'③'),STYLE.dataLeft);
+      setStyledCell(ws,outRow,2,rec?(rec.content||''):'',STYLE.dataLeft);
+      setStyledCell(ws,outRow,3,rec?Number(rec.hours.toFixed(1)):'',STYLE.dataHours,'0.0');
+      setStyledCell(ws,outRow,4,showTotal,STYLE.dataHours,'0.0');
+      setStyledCell(ws,outRow,5,showOver,STYLE.data);
+      setStyledCell(ws,outRow,6,'',STYLE.dataLeft);
+      if(!ws['!rows']) ws['!rows']=[];
+      ws['!rows'][outRow]=ws['!rows'][outRow]||{hpt:28};
       outRow++;
     }
-    const endRow = outRow-1;
-    // Merge month/monthTotal/over/guidance cells per month block, when there are multiple rows.
+    const endRow=outRow-1;
     if(endRow>startRow){
-      [header.monthCol, header.monthTotalCol, header.overCol, header.guidanceCol].forEach(c=>{
-        if(c>=0) newMerges.push({s:{r:startRow,c}, e:{r:endRow,c}});
-      });
+      // Match the original template: month and guidance cells are merged vertically per month block.
+      merges.push({s:{r:startRow,c:0},e:{r:endRow,c:0}});
+      merges.push({s:{r:startRow,c:6},e:{r:endRow,c:6}});
     }
   }
-  ws['!merges'] = newMerges;
-  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:Math.max(outRow-1, header.row), c:lastCol}});
-  XLSX.utils.book_append_sheet(wb, ws, srcSheetName || '資格外活動の把握・一覧表');
+  ws['!merges']=merges;
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(outRow-1,3),c:6}});
+  // Basic page setup for print use.
+  ws['!margins']={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
   return wb;
 }
 function downloadWorkbook(wb, filename){ XLSX.writeFile(wb, filename, {bookType:'xlsx'}); }
@@ -290,7 +388,7 @@ $('makeBtn').onclick = async ()=>{
     const wb=makeNyukanWorkbook();
     const months=[...new Set(summaryRows.map(r=>r.ym))].sort();
     const suffix=months.length?months[0]+'_'+months[months.length-1]:'output';
-    downloadWorkbook(wb, `nyukan_v005_${suffix}.xlsx`);
+    downloadWorkbook(wb, `nyukan_v006_${suffix}.xlsx`);
     status('makeStatus','入管提出用Excelをダウンロードしました。', 'ok');
   }catch(e){ status('makeStatus',e.message,'error'); }
 };
