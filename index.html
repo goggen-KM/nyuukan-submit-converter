@@ -3,492 +3,114 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v009</title>
+<title>入管提出用変換ツール v010</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
-  :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;font-size:16px}
-  .app{max-width:980px;margin:auto;padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  h1{font-size:22px;margin:4px 0 8px} h2{font-size:17px;margin:0 0 10px}.small{font-size:13px;color:var(--muted);line-height:1.6}.notice{background:#fff3d8;border:1px solid #e2bf73;border-radius:12px;padding:10px;margin:8px 0}
-  input,button{font-size:16px} input[type=file]{width:100%;background:white;border:1px solid var(--line);border-radius:10px;padding:10px}.btn{border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;padding:12px 16px;font-size:16px}.btn.secondary{background:#6b6259}.btn:disabled{opacity:.45}.status{white-space:pre-wrap;background:white;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;min-height:48px}.error{color:var(--bad);font-weight:700}.ok{color:var(--ok);font-weight:700}
-  table{border-collapse:collapse;width:100%;background:white;margin-top:10px;font-size:14px}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#eee4d6}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}code{background:#eee4d6;padding:1px 4px;border-radius:4px}
+  :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c;--blue:#2d6cdf}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;font-size:16px}.app{max-width:1060px;margin:auto;padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}h1{font-size:22px;margin:4px 0 8px}h2{font-size:17px;margin:0 0 10px}.small{font-size:13px;color:var(--muted);line-height:1.6}.notice{background:#fff3d8;border:1px solid #e2bf73;border-radius:12px;padding:10px;margin:8px 0}.drop{border:3px dashed #d4b38b;background:#fff;border-radius:18px;padding:28px;text-align:center;font-weight:800;color:var(--muted)}.drop.drag{background:#fff3d8;border-color:var(--accent);color:var(--ink)}input,button{font-size:16px}.btn{border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;padding:12px 16px;font-size:16px}.btn.secondary{background:#6b6259}.btn:disabled{opacity:.45}.status{white-space:pre-wrap;background:white;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;min-height:48px}.error{color:var(--bad);font-weight:700}.ok{color:var(--ok);font-weight:700}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}table{border-collapse:collapse;width:100%;background:white;margin-top:10px;font-size:14px}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#eee4d6}code{background:#eee4d6;padding:1px 4px;border-radius:4px}.fileList{font-size:13px;line-height:1.6;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;max-height:160px;overflow:auto}
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v009</h1>
-  <div class="small">PC用。学生アプリv030以降の勤務記録Excelを読み込み、同じフォルダにある <b>template.xlsx</b> を自動で読み込んで、入管提出用Excelを作成します。学生情報・アルバイト内容・締め日も読み込み、入管提出用シートと締め日別集計シートを作成します。</div>
+  <h1>入管提出用変換ツール v010</h1>
+  <div class="small">PC用。学生アプリが出力した勤務記録Excelを複数まとめて読み込み、1つのExcelに統合します。<b>template.xlsx</b> はこのHTMLと同じ場所から自動で読み込みます。</div>
 
   <section class="card">
     <h2>準備</h2>
-    <div class="notice small">
-      このHTMLと同じ場所に、元様式のExcelを <code>template.xlsx</code> という名前で置いてください。<br>
-      GitHub Pagesで使う場合は、同じリポジトリ直下に <code>index.html</code> と <code>template.xlsx</code> を置きます。
-    </div>
-    <div class="tools">
-      <button class="btn secondary" id="checkTemplateBtn">template.xlsx を確認</button>
-    </div>
-    <div class="status" id="templateStatus">テンプレート：未確認</div>
+    <div class="notice small">このHTMLと同じフォルダに、元様式を <code>template.xlsx</code> という名前で置いてください。GitHub Pagesでは <code>index.html</code> と <code>template.xlsx</code> を同じ階層に置きます。</div>
+    <div class="status" id="templateStatus">template.xlsx：起動時に自動確認します。</div>
   </section>
 
   <section class="card">
-    <h2>1. 勤務記録Excelを選択</h2>
-    <input type="file" id="workFile" accept=".xlsx,.xls">
-    <div class="status" id="readStatus">勤務記録：未読込</div>
+    <h2>1. 学生の勤務記録Excelをまとめて読み込む</h2>
+    <div id="dropZone" class="drop">ここに複数のExcelファイルをドラッグ＆ドロップ<br><span class="small">または下のボタンで複数選択</span></div>
+    <div class="tools"><input id="fileInput" type="file" accept=".xlsx,.xls" multiple></div>
+    <div class="fileList" id="fileList">ファイル未選択</div>
+    <div class="status" id="readStatus">未読込</div>
   </section>
 
   <section class="card">
-    <h2>2. 集計結果</h2>
-    <div class="small">読み込んだ勤務記録を、年月・アルバイト名ごとに集計します。アルバイト内容と締め日は、学生側Excelの「アルバイト情報」シートから読み込みます。</div>
+    <h2>2. 読み込み結果</h2>
+    <div class="small">学生情報シートから学籍番号・氏名・クラスを読み取り、学生ごとに1シートを作成します。シート名は学籍番号です。</div>
     <div id="preview"></div>
   </section>
 
   <section class="card">
-    <h2>3. 入管提出用Excelを作成</h2>
-    <div class="small">テンプレートの罫線・列幅・行高・塗りつぶしをテンプレートの見出し色・罫線・列幅・行高を再現し、必要行数に合わせて行を作ります。時間は「15.0」のような数値で出力します。</div>
-    <div class="tools">
-      <button class="btn" id="makeBtn" disabled>入管提出用Excelをダウンロード</button>
-    </div>
+    <h2>3. 統合Excelを作成</h2>
+    <div class="small">出力Excelには「提出一覧」と、学生ごとのシートを作成します。各学生シートには、入管提出用集計と締め日別集計を入れます。</div>
+    <div class="tools"><button class="btn" id="makeBtn" disabled>統合Excelをダウンロード</button></div>
     <div class="status" id="makeStatus">未作成</div>
   </section>
 </div>
 
 <script>
-let workBook = null;
-let templateBook = null;
-let summaryRows = [];
-let rawDataForClosing = [];
-let studentInfo = {name:'', id:'', className:''};
-
-const $ = (id)=>document.getElementById(id);
-function status(id, msg, cls='') { const el=$(id); el.className = 'status ' + cls; el.textContent = msg; }
-function deepClone(obj){ return obj ? JSON.parse(JSON.stringify(obj)) : obj; }
-function cellAddr(r,c){ return XLSX.utils.encode_cell({r,c}); }
-function getCell(ws,r,c){ return ws[cellAddr(r,c)]; }
-function getVal(ws,r,c){ const cell=getCell(ws,r,c); return cell ? String(cell.v ?? '').trim() : ''; }
-function setCell(ws,r,c,value,styleSource, numberFormatOverride=''){
-  const addr=cellAddr(r,c);
-  const cell={v:value};
-  if(typeof value==='number') cell.t='n'; else cell.t='s';
-  if(styleSource){
-    if(styleSource.s) cell.s=deepClone(styleSource.s);
-    if(styleSource.z) cell.z=styleSource.z;
-  }
-  // テンプレートの罫線・塗りはできるだけ引き継ぐ。
-  // ただし、時間数セルだけは時刻形式にすると 15 → 360:00:00 になるため、
-  // 必ず「数値 0.0」形式に上書きする。
-  if(numberFormatOverride){
-    cell.z = numberFormatOverride;
-    cell.s = cell.s || {};
-    cell.s.numFmt = numberFormatOverride;
-  }
-  if(cell.s && !cell.s.border){
-    cell.s.border = {
-      top:{style:'thin',color:{rgb:'000000'}},
-      bottom:{style:'thin',color:{rgb:'000000'}},
-      left:{style:'thin',color:{rgb:'000000'}},
-      right:{style:'thin',color:{rgb:'000000'}}
-    };
-  }
-  ws[addr]=cell;
-}
+const VERSION='v010';
+let templateBook=null;
+let students=[];
+const $=id=>document.getElementById(id);
+function status(id,msg,cls=''){const el=$(id);el.className='status '+cls;el.textContent=msg;}
+function deepClone(o){return o?JSON.parse(JSON.stringify(o)):o;}
+function cellAddr(r,c){return XLSX.utils.encode_cell({r,c});}
+function getCell(ws,r,c){return ws[cellAddr(r,c)];}
+function getVal(ws,r,c){const cell=getCell(ws,r,c);return cell?String(cell.v??'').trim():'';}
+function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c));}
+function num(v){const n=Number(v);return Number.isFinite(n)?n:0;}
 function parseDateLike(v){
-  if(v==null || v==='') return '';
-  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
-  if(typeof v==='number'){
-    try{ const d=XLSX.SSF.parse_date_code(v); if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; }catch(e){}
-  }
-  const s=String(v).trim();
-  let m=s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
-  if(m) return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[3])).padStart(2,'0')}`;
+  if(v==null||v==='')return '';
+  if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
+  if(typeof v==='number'){try{const d=XLSX.SSF.parse_date_code(v);if(d)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}catch(e){}}
+  const s=String(v).trim();const m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if(m)return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}-${String(Number(m[3])).padStart(2,'0')}`;
   return '';
 }
-function ymFromDate(dateStr){ return dateStr ? dateStr.slice(0,7) : ''; }
-function ymDisplay(ym){ return ym ? ym.replace('-','.') : ''; }
-function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
-
-function readStudentInfo(wb){
-  const info={name:'', id:'', className:''};
-  const sn=wb.SheetNames.find(n=>String(n).includes('学生'));
-  if(!sn) return info;
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
-  for(const row of rows){
-    const k=String(row[0]??'').trim();
-    const v=String(row[1]??'').trim();
-    if(k.includes('氏名')) info.name=v;
-    if(k.includes('学籍')) info.id=v;
-    if(k.includes('クラス')) info.className=v;
-  }
-  return info;
+function parseIso(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d);}
+function isoDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function nextDayIso(d){const x=new Date(d);x.setDate(x.getDate()+1);return isoDate(x);}
+function ymFromDate(dateStr){return dateStr?dateStr.slice(0,7):'';}
+function ymDisplay(ym){return ym?ym.replace('-','.'):'';}
+function daysInMonth(y,m){return new Date(y,m,0).getDate();}
+function clampCloseDate(year,month,closeDay){const d=Number(closeDay);const last=daysInMonth(year,month);const day=Number.isFinite(d)&&d>0?Math.min(d,last):last;return new Date(year,month-1,day);}
+function monthSpanFromData(data){const dates=data.map(r=>r.date).filter(Boolean).sort();if(!dates.length)return [];let start=parseIso(dates[0]),end=parseIso(dates[dates.length-1]);start=new Date(start.getFullYear(),start.getMonth(),1);end=new Date(end.getFullYear(),end.getMonth(),1);const out=[];for(let d=new Date(start);d<=end;d.setMonth(d.getMonth()+1))out.push({year:d.getFullYear(),month:d.getMonth()+1,ym:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});return out;}
+function cleanSheetName(s,used){let name=String(s||'NO_ID').replace(/[\\\/\?\*\[\]\:]/g,'_').slice(0,31)||'NO_ID';let base=name,n=2;while(used.has(name)){const suffix='_'+n++;name=base.slice(0,31-suffix.length)+suffix;}used.add(name);return name;}
+function makeStyle(fillColor='',bold=false,fontColor='000000',align='center',wrap=true,numFmt=''){
+  const st={font:{name:'Yu Gothic',sz:10,bold,color:{rgb:fontColor}},alignment:{horizontal:align,vertical:'center',wrapText:wrap},border:{top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}}};
+  if(fillColor)st.fill={patternType:'solid',fgColor:{rgb:fillColor}};if(numFmt)st.numFmt=numFmt;return st;
 }
-function readJobInfo(wb){
-  const map=new Map();
-  const sn=wb.SheetNames.find(n=>String(n).includes('アルバイト'));
-  if(!sn) return map;
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});
-  if(!rows.length) return map;
-  const headers=rows[0].map(x=>String(x).trim());
-  const idxNo=headers.findIndex(h=>h.includes('番号'));
-  const idxName=headers.findIndex(h=>h.includes('アルバイト名'));
-  const idxContent=headers.findIndex(h=>h.includes('内容'));
-  const idxClose=headers.findIndex(h=>h.includes('締め日'));
-  for(let r=1;r<rows.length;r++){
-    const row=rows[r];
-    const no=Number(row[idxNo]);
-    const name=idxName>=0?String(row[idxName]??'').trim():'';
-    const content=idxContent>=0?String(row[idxContent]??'').trim():'';
-    const closeDay=idxClose>=0?String(row[idxClose]??'').trim():'';
-    if(Number.isFinite(no)&&no>0) map.set(no,{name,content,closeDay});
-    if(name) map.set(name,{name,content,closeDay});
-  }
-  return map;
-}
-
-function findWorkSheet(wb){
-  // まず「勤務記録」シートを優先して読む。
-  const exact = wb.SheetNames.find(n => String(n).trim() === '勤務記録');
-  if(exact) return {name: exact, sheet: wb.Sheets[exact]};
-  const includes = wb.SheetNames.find(n => String(n).includes('勤務'));
-  if(includes) return {name: includes, sheet: wb.Sheets[includes]};
-  // それでも見つからない場合は、日付・アルバイト名・労働時間を含むシートを探す。
-  for(const name of wb.SheetNames){
-    const ws = wb.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-    for(let i=0;i<Math.min(rows.length,30);i++){
-      const row=rows[i].map(x=>String(x).trim());
-      const hasDate=row.some(x=>x==='日付' || x.includes('日付'));
-      const hasJob=row.some(x=>x.includes('アルバイト名'));
-      const hasHours=row.some(x=>x.includes('労働時間') || x==='時間');
-      if(hasDate && hasJob && hasHours) return {name, sheet: ws};
-    }
-  }
-  return {name: wb.SheetNames[0], sheet: wb.Sheets[wb.SheetNames[0]]};
-}
-function readSheetAsObjects(wb){
-  studentInfo=readStudentInfo(wb);
-  const jobMap=readJobInfo(wb);
-  const found = findWorkSheet(wb);
-  const ws = found.sheet;
-  const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-  let headerRowIndex = -1;
-  for(let i=0;i<Math.min(rows.length,30);i++){
-    const row=rows[i].map(x=>String(x).trim());
-    const hasDate=row.some(x=>x==='日付' || x.includes('日付'));
-    const hasJob=row.some(x=>x.includes('アルバイト名'));
-    const hasHours=row.some(x=>x.includes('労働時間') || x==='時間');
-    if(hasDate && hasJob && hasHours){ headerRowIndex=i; break; }
-  }
-  if(headerRowIndex<0) throw new Error('勤務記録Excelの見出し行を認識できません。シート「勤務記録」に、日付・アルバイト名・労働時間の列が必要です。現在読んだシート：'+found.name);
-  const headers = rows[headerRowIndex].map(x=>String(x).trim());
-  const findCol=(pred)=>headers.findIndex(h=>pred(h));
-  const colDate=findCol(h=>h==='日付' || h.includes('日付'));
-  const colNo=findCol(h=>h.includes('アルバイト番号'));
-  const colName=findCol(h=>h==='アルバイト名' || h.includes('アルバイト名'));
-  const colContent=findCol(h=>h.includes('アルバイト内容'));
-  const colStatus=findCol(h=>h==='状態' || h.includes('状態'));
-  const colHours=findCol(h=>h.includes('労働時間') || h==='時間');
-  const colJudge=findCol(h=>h.includes('判定'));
-  if(colDate<0 || colName<0 || colHours<0) throw new Error('日付・アルバイト名・労働時間の列を見つけられません。読んだシート：'+found.name+' / 見出し：'+headers.join('、'));
+const STYLE={topHeader:makeStyle('EAF3F8',true),topValue:makeStyle('',false),tableHeaderMain:makeStyle('0E2841',true,'FFFFFF'),tableHeaderSub:makeStyle('A02B93',true,'FFFFFF'),data:makeStyle('',false),dataLeft:makeStyle('',false,'000000','left'),dataHours:makeStyle('',false,'000000','center',true,'0.0'),listHeader:makeStyle('6B6259',true,'FFFFFF')};
+function setStyledCell(ws,r,c,value,style,numFmt=''){const addr=cellAddr(r,c);const cell={v:value==null?'':value};cell.t=(typeof value==='number')?'n':'s';cell.s=deepClone(style||STYLE.data);if(numFmt){cell.z=numFmt;cell.s.numFmt=numFmt;}ws[addr]=cell;}
+function readStudentInfo(wb){const info={name:'',id:'',className:''};const sn=wb.SheetNames.find(n=>String(n).includes('学生'));if(!sn)return info;const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});for(const row of rows){const k=String(row[0]??'').trim();const v=String(row[1]??'').trim();if(k.includes('氏名'))info.name=v;if(k.includes('学籍'))info.id=v;if(k.includes('クラス'))info.className=v;}return info;}
+function readJobInfo(wb){const map=new Map();const list=[];const sn=wb.SheetNames.find(n=>String(n).includes('アルバイト'));if(!sn)return {map,list};const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:''});if(!rows.length)return {map,list};const h=rows[0].map(x=>String(x).trim());const idxNo=h.findIndex(x=>x.includes('番号'));const idxName=h.findIndex(x=>x.includes('アルバイト名'));const idxContent=h.findIndex(x=>x.includes('内容'));const idxClose=h.findIndex(x=>x.includes('締め日'));for(let r=1;r<rows.length;r++){const row=rows[r];const no=Number(row[idxNo]);const name=idxName>=0?String(row[idxName]??'').trim():'';const content=idxContent>=0?String(row[idxContent]??'').trim():'';const closeDay=idxClose>=0?String(row[idxClose]??'').trim():'';if(Number.isFinite(no)&&no>0){const obj={no,name,content,closeDay};map.set(no,obj);list.push(obj);}if(name)map.set(name,{no,name,content,closeDay});}return {map,list};}
+function findWorkSheet(wb){const exact=wb.SheetNames.find(n=>String(n).trim()==='勤務記録');if(exact)return {name:exact,sheet:wb.Sheets[exact]};const inc=wb.SheetNames.find(n=>String(n).includes('勤務'));if(inc)return {name:inc,sheet:wb.Sheets[inc]};for(const name of wb.SheetNames){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:''});for(let i=0;i<Math.min(rows.length,30);i++){const row=rows[i].map(x=>String(x).trim());if(row.some(x=>x.includes('日付'))&&row.some(x=>x.includes('アルバイト名'))&&row.some(x=>x.includes('労働時間')||x==='時間'))return {name,sheet:wb.Sheets[name]};}}return null;}
+function readWorkRows(wb){const info=readStudentInfo(wb);const jobs=readJobInfo(wb);const found=findWorkSheet(wb);if(!found)throw new Error('勤務記録シートを見つけられません。');const rows=XLSX.utils.sheet_to_json(found.sheet,{header:1,raw:false,defval:''});let headerRow=-1;for(let i=0;i<Math.min(rows.length,30);i++){const row=rows[i].map(x=>String(x).trim());if(row.some(x=>x.includes('日付'))&&row.some(x=>x.includes('アルバイト名'))&&row.some(x=>x.includes('労働時間')||x==='時間')){headerRow=i;break;}}
+  if(headerRow<0)throw new Error('勤務記録の見出し行を認識できません。');
+  const headers=rows[headerRow].map(x=>String(x).trim());const find=pred=>headers.findIndex(pred);const colDate=find(h=>h==='日付'||h.includes('日付'));const colNo=find(h=>h.includes('アルバイト番号'));const colName=find(h=>h==='アルバイト名'||h.includes('アルバイト名'));const colContent=find(h=>h.includes('アルバイト内容'));const colStatus=find(h=>h==='状態'||h.includes('状態'));const colHours=find(h=>h.includes('労働時間')||h==='時間');const colJudge=find(h=>h.includes('判定'));
+  if(colDate<0||colName<0||colHours<0)throw new Error('日付・アルバイト名・労働時間の列が必要です。');
   const data=[];
-  for(let r=headerRowIndex+1;r<rows.length;r++){
-    const row=rows[r];
-    const date=parseDateLike(row[colDate]);
-    const no=colNo>=0?Number(row[colNo]):NaN;
-    const name=String(row[colName]??'').trim();
-    const statusVal=colStatus>=0 ? String(row[colStatus]??'').trim() : '';
-    const hours=num(row[colHours]);
-    const judge=colJudge>=0 ? String(row[colJudge]??'').trim() : '';
-    let content=colContent>=0?String(row[colContent]??'').trim():'';
-    if(!content){
-      const byNo=Number.isFinite(no)?jobMap.get(no):null;
-      const byName=name?jobMap.get(name):null;
-      content=(byNo&&byNo.content)||(byName&&byName.content)||'';
-    }
-    if(!date || !name || hours<=0) continue;
-    if(statusVal && !['あり','勤務','work'].includes(statusVal) && !statusVal.includes('あり')) continue;
-    let closeDay='';
-    const byNo2=Number.isFinite(no)?jobMap.get(no):null;
-    const byName2=name?jobMap.get(name):null;
-    closeDay=(byNo2&&byNo2.closeDay)||(byName2&&byName2.closeDay)||'';
-    data.push({date, ym:ymFromDate(date), name, content, closeDay, hours, judge});
-  }
-  return data;
+  for(let r=headerRow+1;r<rows.length;r++){const row=rows[r];const date=parseDateLike(row[colDate]);const no=colNo>=0?Number(row[colNo]):NaN;const name=String(row[colName]??'').trim();const statusVal=colStatus>=0?String(row[colStatus]??'').trim():'';const hours=num(row[colHours]);const judge=colJudge>=0?String(row[colJudge]??'').trim():'';let content=colContent>=0?String(row[colContent]??'').trim():'';const byNo=Number.isFinite(no)?jobs.map.get(no):null;const byName=name?jobs.map.get(name):null;if(!content)content=(byNo&&byNo.content)||(byName&&byName.content)||'';const closeDay=(byNo&&byNo.closeDay)||(byName&&byName.closeDay)||'';
+    if(!date||!name||hours<=0)continue;if(statusVal&&!['あり','勤務','work'].includes(statusVal)&&!statusVal.includes('あり'))continue;data.push({date,ym:ymFromDate(date),name,content,closeDay,hours,judge});}
+  return {info,jobs:jobs.list,data,sourceSheet:found.name};
 }
-function buildSummary(data){
-  const map=new Map();
-  const monthOver=new Map();
-  for(const r of data){
-    const key=r.ym+'\t'+r.name+'\t'+(r.content||'');
-    if(!map.has(key)) map.set(key,{ym:r.ym, name:r.name, content:r.content||'', hours:0});
-    map.get(key).hours += r.hours;
-    if(r.judge.includes('超過')) monthOver.set(r.ym,true);
-  }
-  const rows=[...map.values()].sort((a,b)=>a.ym.localeCompare(b.ym)||a.name.localeCompare(b.name));
-  const totals={};
-  for(const r of rows) totals[r.ym]=(totals[r.ym]||0)+r.hours;
-  return rows.map(r=>({...r, monthTotal:totals[r.ym], over:monthOver.get(r.ym)?'有':'無'}));
-}
-function renderPreview(){
-  if(summaryRows.length===0){ $('preview').innerHTML='<div class="small">集計データはまだありません。</div>'; return; }
-  let html='<table><thead><tr><th>年月</th><th>アルバイト名</th><th>アルバイト内容</th><th>合計時間</th><th>月合計</th><th>超過</th></tr></thead><tbody>';
-  for(const r of summaryRows) html+=`<tr><td>${ymDisplay(r.ym)}</td><td>${r.name}</td><td>${r.content||''}</td><td>${r.hours.toFixed(1)}</td><td>${r.monthTotal.toFixed(1)}</td><td>${r.over}</td></tr>`;
-  html+='</tbody></table>';
-  $('preview').innerHTML=html;
-}
-async function loadTemplate(){
-  const res = await fetch('template.xlsx?ts='+Date.now(), {cache:'no-store'});
-  if(!res.ok) throw new Error('template.xlsx が見つかりません。同じフォルダに置いてください。');
-  const arr = await res.arrayBuffer();
-  templateBook = XLSX.read(arr, {type:'array', cellStyles:true, cellDates:true});
-  return templateBook;
-}
-function findTemplateHeader(ws){
-  const range=XLSX.utils.decode_range(ws['!ref']);
-  for(let r=0;r<=Math.min(range.e.r,30);r++){
-    const vals=[];
-    for(let c=0;c<=range.e.c;c++) vals.push(getVal(ws,r,c));
-    const hit = vals.some(v=>v.includes('年月')) + vals.some(v=>v.includes('アルバイト名')) + vals.some(v=>v.includes('アルバイト内容')) + vals.some(v=>v.includes('各アルバイト')) + vals.some(v=>v.includes('月稼働'));
-    if(hit>=3){
-      const find=(pred)=>vals.findIndex(pred);
-      return {
-        row:r,
-        monthCol:find(v=>v.includes('年月')),
-        jobCol:find(v=>v.includes('アルバイト名')),
-        contentCol:find(v=>v.includes('アルバイト内容')),
-        jobHoursCol:find(v=>v.includes('各アルバイト') || v.includes('合計時間')),
-        monthTotalCol:find(v=>v.includes('月稼働')),
-        overCol:find(v=>v.includes('時間超過')),
-        guidanceCol:find(v=>v.includes('確認') || v.includes('指導')),
-        lastCol:range.e.c
-      };
-    }
-  }
-  throw new Error('template.xlsx の見出し行を認識できません。「年月」「アルバイト名」「アルバイト内容」などの見出しが必要です。');
-}
-function clearBelow(ws, startRow){
-  const range=XLSX.utils.decode_range(ws['!ref']);
-  for(let r=startRow;r<=Math.max(range.e.r,startRow+300);r++){
-    for(let c=0;c<=range.e.c;c++) delete ws[cellAddr(r,c)];
-  }
-  ws['!merges'] = (ws['!merges']||[]).filter(m=>m.e.r < startRow);
-}
-function copyRowStyles(ws, srcRow, lastCol){
-  const styles=[];
-  for(let c=0;c<=lastCol;c++) styles[c]=deepClone(getCell(ws,srcRow,c));
-  return styles;
-}
-
-function makeStyle(fillColor='', bold=false, fontColor='000000', align='center', wrap=true, numFmt=''){
-  const st={
-    font:{name:'Yu Gothic', sz:10, bold:bold, color:{rgb:fontColor}},
-    alignment:{horizontal:align, vertical:'center', wrapText:wrap},
-    border:{
-      top:{style:'thin',color:{rgb:'000000'}},
-      bottom:{style:'thin',color:{rgb:'000000'}},
-      left:{style:'thin',color:{rgb:'000000'}},
-      right:{style:'thin',color:{rgb:'000000'}}
-    }
-  };
-  if(fillColor) st.fill={patternType:'solid', fgColor:{rgb:fillColor}};
-  if(numFmt) st.numFmt=numFmt;
-  return st;
-}
-const STYLE = {
-  topHeader: makeStyle('EAF3F8', true, '000000', 'center', true),
-  topValue: makeStyle('', false, '000000', 'center', true),
-  spacer: makeStyle('', false, '000000', 'center', true),
-  tableHeaderMain: makeStyle('0E2841', true, 'FFFFFF', 'center', true),
-  tableHeaderSub: makeStyle('A02B93', true, 'FFFFFF', 'center', true),
-  data: makeStyle('', false, '000000', 'center', true),
-  dataLeft: makeStyle('', false, '000000', 'left', true),
-  dataHours: makeStyle('', false, '000000', 'center', true, '0.0')
-};
-function setStyledCell(ws,r,c,value,style,numFmt=''){
-  const addr=cellAddr(r,c);
-  const cell={v:value==null?'':value};
-  if(typeof value==='number') cell.t='n'; else cell.t='s';
-  cell.s=deepClone(style||STYLE.data);
-  if(numFmt){ cell.z=numFmt; cell.s.numFmt=numFmt; }
-  ws[addr]=cell;
-}
-function copyTemplateColsAndRows(src, ws){
-  if(src && src['!cols']) ws['!cols']=deepClone(src['!cols']).slice(0,7);
-  else ws['!cols']=[{wch:17},{wch:22},{wch:22},{wch:22},{wch:22},{wch:18},{wch:36}];
-  if(src && src['!rows']) ws['!rows']=deepClone(src['!rows']);
-  else ws['!rows']=[];
-  // Ensure row heights are readable even when the template does not expose them.
-  ws['!rows'][0]=ws['!rows'][0]||{hpt:34};
-  ws['!rows'][1]=ws['!rows'][1]||{hpt:28};
-  ws['!rows'][3]=ws['!rows'][3]||{hpt:38};
-}
-function getTemplateTopValue(src,r,c, fallback){
-  const v=src ? getVal(src,r,c) : '';
-  return v || fallback;
-}
-function buildFixedTemplateSheet(){
-  const src = templateBook ? templateBook.Sheets[templateBook.SheetNames[0]] : null;
-  const ws={};
-  copyTemplateColsAndRows(src, ws);
-  // Top student-info block.  Keep the headings from template when present; row 2 is left blank for later school-side entry.
-  const topFallback=['国籍コクセキ','学籍番号ガクセキバンゴウ','氏名シメイ','在留カード番号ザイリュウバンゴウ','資格外活動の許可の有無シカクガイカツドウキョカウム'];
-  for(let c=0;c<5;c++){
-    setStyledCell(ws,0,c,getTemplateTopValue(src,0,c,topFallback[c]),STYLE.topHeader);
-    setStyledCell(ws,1,c,(c===1?studentInfo.id:(c===2?studentInfo.name:'')),STYLE.topValue);
-  }
-  for(let c=0;c<6;c++) setStyledCell(ws,2,c,'',STYLE.spacer);
-  const headers=['年月ネンゲツ','アルバイト名メイ','アルバイト内容ナイヨウ','各アルバイト合計時間カクゴウケイジカン','月稼働時間(合計)ツキカドウジカンゴウケイ','時間超過の有無ジカンチョウカウム','確認・指導状況カクニンシドウジョウキョウ'];
-  for(let c=0;c<7;c++) setStyledCell(ws,3,c,getTemplateTopValue(src,3,c,headers[c]), c>=5?STYLE.tableHeaderSub:STYLE.tableHeaderMain);
-  ws['!ref']='A1:G4';
-  ws['!merges']=[];
-  return ws;
-}
-
-function daysInMonth(y,m){return new Date(y,m,0).getDate()}
-function clampCloseDate(year,month,closeDay){
-  const d=Number(closeDay);
-  const last=daysInMonth(year,month);
-  const day=Number.isFinite(d)&&d>0?Math.min(d,last):last;
-  return new Date(year,month-1,day);
-}
-function nextDayIso(d){const x=new Date(d);x.setDate(x.getDate()+1);return isoDate(x)}
-function isoDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function parseIsoDate(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d)}
-function ymFromDateObj(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
-function monthSpanFromData(data){
-  const dates=data.map(r=>r.date).filter(Boolean).sort();
-  if(!dates.length)return [];
-  let start=parseIsoDate(dates[0]), end=parseIsoDate(dates[dates.length-1]);
-  start=new Date(start.getFullYear(),start.getMonth(),1);
-  end=new Date(end.getFullYear(),end.getMonth(),1);
-  const out=[];
-  for(let d=new Date(start);d<=end;d.setMonth(d.getMonth()+1)) out.push({year:d.getFullYear(),month:d.getMonth()+1,ym:ymFromDateObj(d)});
-  return out;
-}
-function buildClosingSummary(data){
-  const jobs=new Map();
-  for(const r of data){
-    const key=r.name+'\t'+(r.content||'')+'\t'+(r.closeDay||'');
-    if(!jobs.has(key))jobs.set(key,{name:r.name,content:r.content||'',closeDay:r.closeDay||'',records:[]});
-    jobs.get(key).records.push(r);
-  }
-  const months=monthSpanFromData(data);
-  const out=[];
-  for(const job of jobs.values()){
-    const cd=Number(job.closeDay);
-    if(!Number.isFinite(cd)||cd<1||cd>31){
-      out.push({name:job.name,content:job.content,closeDay:job.closeDay||'未設定',periodLabel:'締め日未設定',start:'',end:'',hours:null});
-      continue;
-    }
-    for(const m of months){
-      const endD=clampCloseDate(m.year,m.month,cd);
-      const prevMonthDate=new Date(m.year,m.month-2,1);
-      const prevClose=clampCloseDate(prevMonthDate.getFullYear(),prevMonthDate.getMonth()+1,cd);
-      const startIso=nextDayIso(prevClose), endIso=isoDate(endD);
-      let sum=0;
-      for(const r of job.records){ if(r.date>=startIso && r.date<=endIso) sum+=r.hours; }
-      // 0時間期間も期間確認のため出す
-      out.push({name:job.name,content:job.content,closeDay:cd,start:startIso,end:endIso,periodLabel:startIso+'〜'+endIso,hours:sum});
-    }
-  }
-  return out.sort((a,b)=>a.name.localeCompare(b.name)||String(a.start).localeCompare(String(b.start)));
-}
-function appendClosingSheet(wb,data){
-  const rows=[['アルバイト名','アルバイト内容','締め日','集計期間','開始日','終了日','合計時間']];
-  for(const r of buildClosingSummary(data)) rows.push([r.name,r.content,r.closeDay,r.periodLabel,r.start,r.end,r.hours==null?'':Number(r.hours.toFixed(1))]);
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:22},{wch:28},{wch:8},{wch:24},{wch:12},{wch:12},{wch:10}];
-  const head={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'6B6259'}},alignment:{horizontal:'center'},border:{top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}}};
-  const cellStyle={alignment:{horizontal:'center'},border:{top:{style:'thin',color:{rgb:'000000'}},bottom:{style:'thin',color:{rgb:'000000'}},left:{style:'thin',color:{rgb:'000000'}},right:{style:'thin',color:{rgb:'000000'}}}};
-  for(let c=0;c<rows[0].length;c++){const cell=ws[XLSX.utils.encode_cell({r:0,c})]; if(cell)cell.s=head;}
-  for(let r=1;r<rows.length;r++)for(let c=0;c<rows[0].length;c++){const cell=ws[XLSX.utils.encode_cell({r,c})]; if(cell)cell.s=cellStyle; if(c===6&&cell&&typeof cell.v==='number')cell.z='0.0';}
-  XLSX.utils.book_append_sheet(wb,ws,'締め日別集計');
-}
-
-function makeNyukanWorkbook(){
-  if(!templateBook) throw new Error('template.xlsx が読み込まれていません。');
-  if(summaryRows.length===0) throw new Error('集計データがありません。勤務記録Excelを読み込んでください。');
-  const wb = XLSX.utils.book_new();
-  const ws = buildFixedTemplateSheet();
-  const sheetName = templateBook.SheetNames[0] || '資格外活動の把握・一覧表';
-  const byMonth = new Map();
-  for(const r of summaryRows){ if(!byMonth.has(r.ym)) byMonth.set(r.ym, []); byMonth.get(r.ym).push(r); }
-  let outRow = 4; // 0-based row 5
-  const merges=[];
-  for(const [ym, rows] of byMonth.entries()){
-    const startRow=outRow;
-    const blockRows=Math.max(3, rows.length);
-    for(let i=0;i<blockRows;i++){
-      const rec=rows[i];
-      const showMonth=i===0?ymDisplay(ym):'';
-      const showTotal=i===0&&rows[0]?Number(rows[0].monthTotal.toFixed(1)):'';
-      const showOver=i===0&&rows[0]?rows[0].over:'';
-      setStyledCell(ws,outRow,0,showMonth,STYLE.data);
-      setStyledCell(ws,outRow,1,rec?rec.name:(i===0?'①':i===1?'②':'③'),STYLE.dataLeft);
-      setStyledCell(ws,outRow,2,rec?(rec.content||''):'',STYLE.dataLeft);
-      setStyledCell(ws,outRow,3,rec?Number(rec.hours.toFixed(1)):'',STYLE.dataHours,'0.0');
-      setStyledCell(ws,outRow,4,showTotal,STYLE.dataHours,'0.0');
-      setStyledCell(ws,outRow,5,showOver,STYLE.data);
-      setStyledCell(ws,outRow,6,'',STYLE.dataLeft);
-      if(!ws['!rows']) ws['!rows']=[];
-      ws['!rows'][outRow]=ws['!rows'][outRow]||{hpt:28};
-      outRow++;
-    }
-    const endRow=outRow-1;
-    if(endRow>startRow){
-      // Match the original template: month and guidance cells are merged vertically per month block.
-      merges.push({s:{r:startRow,c:0},e:{r:endRow,c:0}});
-      merges.push({s:{r:startRow,c:6},e:{r:endRow,c:6}});
-    }
-  }
-  ws['!merges']=merges;
-  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(outRow-1,3),c:6}});
-  // Basic page setup for print use.
-  ws['!margins']={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  appendClosingSheet(wb, rawDataForClosing);
-  return wb;
-}
-function downloadWorkbook(wb, filename){ XLSX.writeFile(wb, filename, {bookType:'xlsx'}); }
-
-$('checkTemplateBtn').onclick = async ()=>{
-  status('templateStatus','template.xlsx を読み込み中...');
-  try{
-    await loadTemplate();
-    const ws=templateBook.Sheets[templateBook.SheetNames[0]];
-    const h=findTemplateHeader(ws);
-    status('templateStatus',`template.xlsx を読み込みました。\nシート：${templateBook.SheetNames[0]}\n見出し行：${h.row+1}行目`, 'ok');
-  }catch(e){ status('templateStatus',e.message,'error'); }
-};
-
-$('workFile').onchange = async (ev)=>{
-  const file=ev.target.files[0];
-  if(!file) return;
-  status('readStatus','勤務記録Excelを読み込み中...');
-  try{
-    const arr=await file.arrayBuffer();
-    workBook=XLSX.read(arr,{type:'array',cellDates:true});
-    const raw=readSheetAsObjects(workBook);
-    rawDataForClosing=raw;
-    summaryRows=buildSummary(raw);
-    renderPreview();
-    $('makeBtn').disabled = summaryRows.length===0;
-    status('readStatus',`読み込み成功：勤務記録 ${raw.length}件、集計 ${summaryRows.length}件。`, 'ok');
-  }catch(e){ summaryRows=[]; renderPreview(); $('makeBtn').disabled=true; status('readStatus',e.message,'error'); }
-};
-
-$('makeBtn').onclick = async ()=>{
-  status('makeStatus','入管提出用Excelを作成中...');
-  try{
-    if(!templateBook) await loadTemplate();
-    const wb=makeNyukanWorkbook();
-    const months=[...new Set(summaryRows.map(r=>r.ym))].sort();
-    const suffix=months.length?months[0]+'_'+months[months.length-1]:'output';
-    downloadWorkbook(wb, `nyukan_v009_${suffix}.xlsx`);
-    status('makeStatus','入管提出用Excelをダウンロードしました。', 'ok');
-  }catch(e){ status('makeStatus',e.message,'error'); }
-};
-
-renderPreview();
+function buildMonthlySummary(data){const map=new Map(),monthOver=new Map();for(const r of data){const key=r.ym+'\t'+r.name+'\t'+(r.content||'');if(!map.has(key))map.set(key,{ym:r.ym,name:r.name,content:r.content||'',hours:0});map.get(key).hours+=r.hours;if(String(r.judge).includes('超過'))monthOver.set(r.ym,true);}const rows=[...map.values()].sort((a,b)=>a.ym.localeCompare(b.ym)||a.name.localeCompare(b.name));const totals={};for(const r of rows)totals[r.ym]=(totals[r.ym]||0)+r.hours;return rows.map(r=>({...r,monthTotal:totals[r.ym],over:monthOver.get(r.ym)?'有':'無'}));}
+function buildClosingSummary(data){const jobs=new Map();for(const r of data){const key=r.name+'\t'+(r.content||'')+'\t'+(r.closeDay||'');if(!jobs.has(key))jobs.set(key,{name:r.name,content:r.content||'',closeDay:r.closeDay||'',records:[]});jobs.get(key).records.push(r);}const months=monthSpanFromData(data);const out=[];for(const job of jobs.values()){const cd=Number(job.closeDay);if(!Number.isFinite(cd)||cd<1||cd>31){out.push({name:job.name,content:job.content,closeDay:job.closeDay||'未設定',periodLabel:'締め日未設定',start:'',end:'',hours:null});continue;}for(const m of months){const endD=clampCloseDate(m.year,m.month,cd);const prev=new Date(m.year,m.month-2,1);const prevClose=clampCloseDate(prev.getFullYear(),prev.getMonth()+1,cd);const startIso=nextDayIso(prevClose),endIso=isoDate(endD);let sum=0;for(const r of job.records){if(r.date>=startIso&&r.date<=endIso)sum+=r.hours;}out.push({name:job.name,content:job.content,closeDay:cd,periodLabel:startIso+'〜'+endIso,start:startIso,end:endIso,hours:sum});}}return out.sort((a,b)=>a.name.localeCompare(b.name)||String(a.start).localeCompare(String(b.start)));}
+async function loadTemplate(){const res=await fetch('template.xlsx?ts='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('template.xlsx が見つかりません。同じフォルダに置いてください。');const arr=await res.arrayBuffer();templateBook=XLSX.read(arr,{type:'array',cellStyles:true,cellDates:true});return templateBook;}
+function buildStudentSheet(student){const ws={};const src=templateBook?templateBook.Sheets[templateBook.SheetNames[0]]:null;ws['!cols']=(src&&src['!cols'])?deepClone(src['!cols']).slice(0,8):[{wch:17},{wch:22},{wch:24},{wch:16},{wch:18},{wch:16},{wch:32},{wch:12}];ws['!rows']=[];
+  const top=['国籍','学籍番号','氏名','在留カード番号','資格外活動の許可の有無'];for(let c=0;c<5;c++){setStyledCell(ws,0,c,top[c],STYLE.topHeader);setStyledCell(ws,1,c,c===1?student.info.id:(c===2?student.info.name:''),STYLE.topValue);}setStyledCell(ws,1,5,'クラス',STYLE.topHeader);setStyledCell(ws,1,6,student.info.className||'',STYLE.topValue);
+  for(let c=0;c<7;c++)setStyledCell(ws,2,c,'',STYLE.data);
+  const headers=['年月','アルバイト名','アルバイト内容','各アルバイト合計時間','月稼働時間(合計)','時間超過の有無','確認・指導状況'];for(let c=0;c<7;c++)setStyledCell(ws,3,c,headers[c],c>=5?STYLE.tableHeaderSub:STYLE.tableHeaderMain);
+  const monthly=buildMonthlySummary(student.data);let row=4;const byMonth=new Map();for(const r of monthly){if(!byMonth.has(r.ym))byMonth.set(r.ym,[]);byMonth.get(r.ym).push(r);}const merges=[];for(const [ym,rs]of byMonth.entries()){const start=row;const blockRows=Math.max(3,rs.length);for(let i=0;i<blockRows;i++){const rec=rs[i];setStyledCell(ws,row,0,i===0?ymDisplay(ym):'',STYLE.data);setStyledCell(ws,row,1,rec?rec.name:(i===0?'①':i===1?'②':'③'),STYLE.dataLeft);setStyledCell(ws,row,2,rec?(rec.content||''):'',STYLE.dataLeft);setStyledCell(ws,row,3,rec?Number(rec.hours.toFixed(1)):'',STYLE.dataHours,'0.0');setStyledCell(ws,row,4,i===0&&rs[0]?Number(rs[0].monthTotal.toFixed(1)):'',STYLE.dataHours,'0.0');setStyledCell(ws,row,5,i===0&&rs[0]?rs[0].over:'',STYLE.data);setStyledCell(ws,row,6,'',STYLE.dataLeft);row++;}if(row-1>start){merges.push({s:{r:start,c:0},e:{r:row-1,c:0}});merges.push({s:{r:start,c:6},e:{r:row-1,c:6}});}}
+  row+=2;setStyledCell(ws,row,0,'締め日別集計',STYLE.tableHeaderMain);for(let c=1;c<7;c++)setStyledCell(ws,row,c,'',STYLE.tableHeaderMain);row++;
+  const ch=['アルバイト名','アルバイト内容','締め日','集計期間','開始日','終了日','合計時間'];for(let c=0;c<ch.length;c++)setStyledCell(ws,row,c,ch[c],STYLE.listHeader);row++;
+  const closing=buildClosingSummary(student.data);for(const r of closing){setStyledCell(ws,row,0,r.name,STYLE.dataLeft);setStyledCell(ws,row,1,r.content||'',STYLE.dataLeft);setStyledCell(ws,row,2,r.closeDay,STYLE.data);setStyledCell(ws,row,3,r.periodLabel,STYLE.data);setStyledCell(ws,row,4,r.start,STYLE.data);setStyledCell(ws,row,5,r.end,STYLE.data);setStyledCell(ws,row,6,r.hours==null?'':Number(r.hours.toFixed(1)),STYLE.dataHours,'0.0');row++;}
+  ws['!merges']=merges;ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(row-1,4),c:6}});ws['!margins']={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};return ws;}
+function buildIndexSheet(students,sheetNames){const rows=[['学籍番号','氏名','クラス','勤務記録件数','対象月','シート']];for(let i=0;i<students.length;i++){const s=students[i],months=[...new Set(s.data.map(r=>r.ym))].sort().join('、');rows.push([s.info.id||'',s.info.name||'',s.info.className||'',s.data.length,months,sheetNames[i]]);}const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:14},{wch:18},{wch:14},{wch:12},{wch:28},{wch:16}];for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(0,c)];if(cell)cell.s=STYLE.listHeader;}for(let r=1;r<rows.length;r++){for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(r,c)];if(cell)cell.s=STYLE.data;if(c===5&&cell){cell.l={Target:"#'"+sheetNames[r-1]+"'!A1",Tooltip:'学生シートへ移動'};}}}return ws;}
+function makeWorkbook(){if(!students.length)throw new Error('学生Excelが読み込まれていません。');const wb=XLSX.utils.book_new();const used=new Set();const sheetNames=students.map(s=>cleanSheetName(s.info.id||s.info.name||'NO_ID',used));XLSX.utils.book_append_sheet(wb,buildIndexSheet(students,sheetNames),'提出一覧');for(let i=0;i<students.length;i++){XLSX.utils.book_append_sheet(wb,buildStudentSheet(students[i]),sheetNames[i]);}return wb;}
+async function processFiles(fileList){const files=[...fileList].filter(f=>/\.xlsx?$/i.test(f.name));if(!files.length){status('readStatus','Excelファイルが選択されていません。','error');return;}$('fileList').innerHTML=files.map(f=>'・'+esc(f.name)).join('<br>');status('readStatus','読み込み中...');students=[];const errors=[];for(const file of files){try{const arr=await file.arrayBuffer();const wb=XLSX.read(arr,{type:'array',cellDates:true});const parsed=readWorkRows(wb);students.push({fileName:file.name,info:parsed.info,jobs:parsed.jobs,data:parsed.data,sourceSheet:parsed.sourceSheet});}catch(e){errors.push(file.name+'：'+e.message);}}
+  students.sort((a,b)=>String(a.info.id||'').localeCompare(String(b.info.id||''))||String(a.fileName).localeCompare(String(b.fileName)));
+  renderPreview();$('makeBtn').disabled=!students.length;status('readStatus',`読み込み完了：成功 ${students.length}件 / 失敗 ${errors.length}件`+(errors.length?'\n'+errors.join('\n'):''),errors.length?'error':'ok');}
+function renderPreview(){if(!students.length){$('preview').innerHTML='<div class="small">まだ読み込まれていません。</div>';return;}let html='<table><thead><tr><th>学籍番号</th><th>氏名</th><th>クラス</th><th>勤務記録件数</th><th>対象月</th><th>ファイル</th></tr></thead><tbody>';for(const s of students){const months=[...new Set(s.data.map(r=>r.ym))].sort().join('、');html+=`<tr><td>${esc(s.info.id)}</td><td>${esc(s.info.name)}</td><td>${esc(s.info.className)}</td><td>${s.data.length}</td><td>${esc(months)}</td><td>${esc(s.fileName)}</td></tr>`;}html+='</tbody></table>';$('preview').innerHTML=html;}
+async function initTemplate(){status('templateStatus','template.xlsx を自動読み込み中...');try{await loadTemplate();status('templateStatus',`template.xlsx を読み込みました。\nシート：${templateBook.SheetNames[0]}`,'ok');}catch(e){status('templateStatus',e.message,'error');}}
+const drop=$('dropZone');['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));drop.addEventListener('drop',e=>processFiles(e.dataTransfer.files));$('fileInput').addEventListener('change',e=>processFiles(e.target.files));$('makeBtn').onclick=async()=>{status('makeStatus','統合Excelを作成中...');try{if(!templateBook)await loadTemplate();const wb=makeWorkbook();XLSX.writeFile(wb,'nyukan_batch_v010.xlsx',{bookType:'xlsx'});status('makeStatus','統合Excelをダウンロードしました。','ok');}catch(e){status('makeStatus',e.message,'error');}};
+initTemplate();renderPreview();
 </script>
 </body>
 </html>
