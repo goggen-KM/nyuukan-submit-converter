@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>入管提出用変換ツール v016</title>
+<title>入管提出用変換ツール v017</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{--bg:#f8f5ef;--card:#fffdfa;--ink:#2f2a25;--muted:#776d62;--line:#e1d7c8;--accent:#e98a3a;--bad:#c84032;--ok:#1f8a4c;--blue:#2d6cdf}
@@ -12,7 +12,7 @@
 </head>
 <body>
 <div class="app">
-  <h1>入管提出用変換ツール v016</h1>
+  <h1>入管提出用変換ツール v017</h1>
   <div class="small">PC用。学生アプリが出力した勤務記録Excelを複数まとめて読み込み、1つのExcelに統合します。<b>template.xlsx</b> はこのHTMLと同じ場所から自動で読み込みます。</div>
 
   <section class="card">
@@ -46,7 +46,7 @@
 </div>
 
 <script>
-const VERSION='v016';
+const VERSION='v017';
 let dailyLimits={};
 let templateBook=null;
 let students=[];
@@ -110,10 +110,11 @@ function readWorkRows(wb){const info=readStudentInfo(wb);const jobs=readJobInfo(
   if(headerRow<0)throw new Error('勤務記録の見出し行を認識できません。');
   const headers=rows[headerRow].map(x=>String(x).trim());const find=pred=>headers.findIndex(pred);const colDate=find(h=>h==='日付'||h.includes('日付'));const colNo=find(h=>h.includes('アルバイト番号'));const colName=find(h=>h==='アルバイト名'||h.includes('アルバイト名'));const colContent=find(h=>h.includes('アルバイト内容'));const colStatus=find(h=>h==='状態'||h.includes('状態'));const colHours=find(h=>h.includes('労働時間')||h==='時間');const colJudge=find(h=>h.includes('判定'));
   if(colDate<0||colName<0||colHours<0)throw new Error('日付・アルバイト名・労働時間の列が必要です。');
-  const data=[];
+  const data=[],auditRows=[];
   for(let r=headerRow+1;r<rows.length;r++){const row=rows[r];const date=parseDateLike(row[colDate]);const no=colNo>=0?Number(row[colNo]):NaN;const name=String(row[colName]??'').trim();const statusVal=colStatus>=0?String(row[colStatus]??'').trim():'';const hours=num(row[colHours]);const judge=colJudge>=0?String(row[colJudge]??'').trim():'';let content=colContent>=0?String(row[colContent]??'').trim():'';const byNo=Number.isFinite(no)?jobs.map.get(no):null;const byName=name?jobs.map.get(name):null;if(!content)content=(byNo&&byNo.content)||(byName&&byName.content)||'';const closeDay=(byNo&&byNo.closeDay)||(byName&&byName.closeDay)||'';
+    if(date)auditRows.push({date,status:statusVal,judge});
     if(!date||!name||hours<=0)continue;if(statusVal&&!['あり','勤務','work'].includes(statusVal)&&!statusVal.includes('あり'))continue;data.push({date,ym:ymFromDate(date),name,content,closeDay,hours,judge});}
-  return {info,jobs:jobs.list,data,sourceSheet:found.name};
+  return {info,jobs:jobs.list,data,auditRows,sourceSheet:found.name};
 }
 function buildMonthlySummary(data){const map=new Map(),monthOver=new Map();for(const r of data){const key=r.ym+'\t'+r.name+'\t'+(r.content||'');if(!map.has(key))map.set(key,{ym:r.ym,name:r.name,content:r.content||'',hours:0});map.get(key).hours+=r.hours;if(String(r.judge).includes('超過'))monthOver.set(r.ym,true);}const rows=[...map.values()].sort((a,b)=>a.ym.localeCompare(b.ym)||a.name.localeCompare(b.name));const totals={};for(const r of rows)totals[r.ym]=(totals[r.ym]||0)+r.hours;return rows.map(r=>({...r,monthTotal:totals[r.ym],over:monthOver.get(r.ym)?'有':'無'}));}
 function buildClosingSummary(data){const jobs=new Map();for(const r of data){const key=r.name+'\t'+(r.content||'')+'\t'+(r.closeDay||'');if(!jobs.has(key))jobs.set(key,{name:r.name,content:r.content||'',closeDay:r.closeDay||'',records:[]});jobs.get(key).records.push(r);}const months=monthSpanFromData(data);const out=[];for(const job of jobs.values()){const cd=Number(job.closeDay);if(!Number.isFinite(cd)||cd<1||cd>31){out.push({name:job.name,content:job.content,closeDay:job.closeDay||'未設定',periodLabel:'締め日未設定',start:'',end:'',hours:null});continue;}for(const m of months){const endD=clampCloseDate(m.year,m.month,cd);const prev=new Date(m.year,m.month-2,1);const prevClose=clampCloseDate(prev.getFullYear(),prev.getMonth()+1,cd);const startIso=nextDayIso(prevClose),endIso=isoDate(endD);let sum=0;for(const r of job.records){if(r.date>=startIso&&r.date<=endIso)sum+=r.hours;}out.push({name:job.name,content:job.content,closeDay:cd,periodLabel:startIso+'〜'+endIso,start:startIso,end:endIso,hours:sum});}}return out.sort((a,b)=>a.name.localeCompare(b.name)||String(a.start).localeCompare(String(b.start)));}
@@ -131,7 +132,20 @@ function buildStudentSheet(student){const ws={};const src=templateBook?templateB
   const ch=['アルバイト名','アルバイト内容','締め日','集計期間','開始日','終了日','合計時間'];for(let c=0;c<ch.length;c++)setStyledCell(ws,row,c,ch[c],STYLE.listHeader);row++;
   const closing=buildClosingSummary(student.data);for(const r of closing){setStyledCell(ws,row,0,r.name,STYLE.dataLeft);setStyledCell(ws,row,1,r.content||'',STYLE.dataLeft);setStyledCell(ws,row,2,r.closeDay,STYLE.data);setStyledCell(ws,row,3,r.periodLabel,STYLE.data);setStyledCell(ws,row,4,r.start,STYLE.data);setStyledCell(ws,row,5,r.end,STYLE.data);setStyledCell(ws,row,6,r.hours==null?'':Number(r.hours.toFixed(1)),STYLE.dataHours,'0.0');row++;}
   ws['!merges']=merges;ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(row-1,4),c:6}});ws['!margins']={left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2};return ws;}
-function buildIndexSheet(students,sheetNames){const rows=[['学籍番号','氏名','勤務記録件数','対象月','シート']];for(let i=0;i<students.length;i++){const s=students[i],months=[...new Set(s.data.map(r=>r.ym))].sort().join('、');rows.push([s.info.id||'',s.info.name||'',s.data.length,months,sheetNames[i]]);}const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:14},{wch:18},{wch:12},{wch:28},{wch:16}];for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(0,c)];if(cell)cell.s=STYLE.listHeader;}for(let r=1;r<rows.length;r++){for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(r,c)];if(cell)cell.s=STYLE.data;if(c===4&&cell){cell.l={Target:"#'"+sheetNames[r-1]+"'!A1",Tooltip:'学生シートへ移動'};}}}return ws;}
+function isEnteredStatus(v){const s=String(v||'').trim();return s==='あり'||s==='なし'||s.includes('あり')||s.includes('なし')||s==='勤務'||s.toLowerCase()==='work';}
+function isBlankStatus(v){const s=String(v||'').trim();return !s||s==='未入力'||s.toLowerCase()==='blank';}
+function studentAuditSummary(student){
+  const rows=(student.auditRows||[]).filter(r=>r.date).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const enteredDates=[...new Set(rows.filter(r=>isEnteredStatus(r.status)).map(r=>r.date))].sort();
+  if(!enteredDates.length)return {start:'',latest:'',over:false,overDates:[],blank:false,blankDates:[]};
+  const start=enteredDates[0],latest=enteredDates[enteredDates.length-1];
+  const latestD=parseIso(latest),fromD=new Date(latestD);fromD.setDate(fromD.getDate()-6);const from=isoDate(fromD);
+  const overDates=[...new Set(rows.filter(r=>r.date>=from&&r.date<=latest&&String(r.judge||'').includes('超過')).map(r=>r.date))].sort();
+  const byDate=new Map();for(const r of rows){if(r.date<start||r.date>latest)continue;if(!byDate.has(r.date))byDate.set(r.date,[]);byDate.get(r.date).push(r);}
+  const blankDates=[];for(let d=parseIso(start),end=parseIso(latest);d<=end;d.setDate(d.getDate()+1)){const ds=isoDate(d),day=byDate.get(ds)||[];if(!day.length||day.every(r=>isBlankStatus(r.status)))blankDates.push(ds);}
+  return {start,latest,over:overDates.length>0,overDates,blank:blankDates.length>0,blankDates};
+}
+function buildIndexSheet(students,sheetNames){const rows=[['学籍番号','氏名','勤務記録件数','対象月','超過警告（最新入力日から7日間）','未入力警告（開始日〜最新入力日）','シート']];const audits=[];for(let i=0;i<students.length;i++){const s=students[i],months=[...new Set(s.data.map(r=>r.ym))].sort().join('、'),a=studentAuditSummary(s);audits.push(a);const overText=a.over?'⚠ 超過あり'+(a.overDates.length?'（'+a.overDates.join('、')+'）':''):'OK';const blankText=a.blank?'⚠ 未入力あり（'+a.blankDates.length+'日）':'OK';rows.push([s.info.id||'',s.info.name||'',s.data.length,months,overText,blankText,sheetNames[i]]);}const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:14},{wch:18},{wch:12},{wch:28},{wch:34},{wch:26},{wch:16}];const warnStyle=makeStyle('FFC7CE',true,'9C0006','center',true),okStyle=makeStyle('E2F0D9',true,'006100','center',true);for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(0,c)];if(cell)cell.s=STYLE.listHeader;}for(let r=1;r<rows.length;r++){for(let c=0;c<rows[0].length;c++){const cell=ws[cellAddr(r,c)];if(cell)cell.s=STYLE.data;if(c===4&&cell)cell.s=audits[r-1].over?warnStyle:okStyle;if(c===5&&cell)cell.s=audits[r-1].blank?warnStyle:okStyle;if(c===6&&cell){cell.l={Target:"#'"+sheetNames[r-1]+"'!A1",Tooltip:'学生シートへ移動'};}}}return ws;}
 
 function jobKey(r){return String(r.name||'')+'\t'+String(r.content||'');}
 function jobLabelFromKey(key){const parts=String(key).split('\t');return {name:parts[0]||'',content:parts[1]||''};}
@@ -148,7 +162,7 @@ function buildDailyJobSheet(student){const ws={};const keys=[...new Set(student.
 function makeDailyWorkbook(){if(!students.length)throw new Error('学生Excelが読み込まれていません。');const wb=XLSX.utils.book_new();const used=new Set();const sheetNames=students.map(s=>cleanSheetName((s.info.id||s.info.name||'NO_ID')+'_日別',used));XLSX.utils.book_append_sheet(wb,buildDailyIndexSheet(students,sheetNames),'提出一覧');for(let i=0;i<students.length;i++){XLSX.utils.book_append_sheet(wb,buildDailyJobSheet(students[i]),sheetNames[i]);}return wb;}
 
 function makeWorkbook(){if(!students.length)throw new Error('学生Excelが読み込まれていません。');const wb=XLSX.utils.book_new();const used=new Set();const sheetNames=students.map(s=>cleanSheetName(s.info.id||s.info.name||'NO_ID',used));XLSX.utils.book_append_sheet(wb,buildIndexSheet(students,sheetNames),'提出一覧');for(let i=0;i<students.length;i++){XLSX.utils.book_append_sheet(wb,buildStudentSheet(students[i]),sheetNames[i]);}return wb;}
-async function processFiles(fileList){const files=[...fileList].filter(f=>/\.xlsx?$/i.test(f.name));if(!files.length){status('readStatus','Excelファイルが選択されていません。','error');return;}$('fileList').innerHTML=files.map(f=>'・'+esc(f.name)).join('<br>');status('readStatus','読み込み中...');students=[];const errors=[];for(const file of files){try{const arr=await file.arrayBuffer();const wb=XLSX.read(arr,{type:'array',cellDates:true});const parsed=readWorkRows(wb);students.push({fileName:file.name,info:parsed.info,jobs:parsed.jobs,data:parsed.data,sourceSheet:parsed.sourceSheet});}catch(e){errors.push(file.name+'：'+e.message);}}
+async function processFiles(fileList){const files=[...fileList].filter(f=>/\.xlsx?$/i.test(f.name));if(!files.length){status('readStatus','Excelファイルが選択されていません。','error');return;}$('fileList').innerHTML=files.map(f=>'・'+esc(f.name)).join('<br>');status('readStatus','読み込み中...');students=[];const errors=[];for(const file of files){try{const arr=await file.arrayBuffer();const wb=XLSX.read(arr,{type:'array',cellDates:true});const parsed=readWorkRows(wb);students.push({fileName:file.name,info:parsed.info,jobs:parsed.jobs,data:parsed.data,auditRows:parsed.auditRows||[],sourceSheet:parsed.sourceSheet});}catch(e){errors.push(file.name+'：'+e.message);}}
   students.sort((a,b)=>String(a.info.idSortKey||a.info.id||'').localeCompare(String(b.info.idSortKey||b.info.id||''), 'ja', {numeric:true})||String(a.fileName).localeCompare(String(b.fileName)));
   renderPreview();$('makeBtn').disabled=!students.length;$('dailyBtn').disabled=!students.length;status('readStatus',`読み込み完了：成功 ${students.length}件 / 失敗 ${errors.length}件`+(errors.length?'\n'+errors.join('\n'):''),errors.length?'error':'ok');}
 function renderPreview(){if(!students.length){$('preview').innerHTML='<div class="small">まだ読み込まれていません。</div>';return;}let html='<table><thead><tr><th>学籍番号</th><th>氏名</th><th>勤務記録件数</th><th>対象月</th><th>ファイル</th></tr></thead><tbody>';for(const s of students){const months=[...new Set(s.data.map(r=>r.ym))].sort().join('、');html+=`<tr><td>${esc(s.info.id)}</td><td>${esc(s.info.name)}</td><td>${s.data.length}</td><td>${esc(months)}</td><td>${esc(s.fileName)}</td></tr>`;}html+='</tbody></table>';$('preview').innerHTML=html;}
@@ -157,7 +171,7 @@ async function initTemplate(){status('templateStatus','template.xlsx を自動�
 シート：${templateBook.SheetNames[0]}`,'ok');}catch(e){status('templateStatus',e.message,'error');}}
 async function initLimits(){status('limitStatus','limits.csv を自動読み込み中...');try{await loadLimitsCsv();const dates=Object.keys(dailyLimits).sort();const sample=dates.length?`\n例：${dates[0]} = ${dailyLimits[dates[0]]}時間`:'';status('limitStatus',`limits.csv を読み込みました。${dates.length}件${sample}`,'ok');}catch(e){dailyLimits={};status('limitStatus',e.message+'\n日別アルバイト別時間表のC列（上限）は空欄になります。','error');}}
 const drop=$('dropZone');['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));drop.addEventListener('drop',e=>processFiles(e.dataTransfer.files));$('fileInput').addEventListener('change',e=>processFiles(e.target.files));$('makeBtn').onclick=async()=>{status('makeStatus','統合Excelを作成中...');try{if(!templateBook)await loadTemplate();const wb=makeWorkbook();XLSX.writeFile(wb,nyukanFileName(),{bookType:'xlsx'});status('makeStatus','統合Excelをダウンロードしました。','ok');}catch(e){status('makeStatus',e.message,'error');}};
-$('dailyBtn').onclick=async()=>{status('dailyStatus','日別アルバイト別時間表を作成中...');try{if(!Object.keys(dailyLimits||{}).length){try{await loadLimitsCsv();}catch(e){}}const wb=makeDailyWorkbook();XLSX.writeFile(wb,'daily_job_hours_v016.xlsx',{bookType:'xlsx'});status('dailyStatus','日別アルバイト別時間表をダウンロードしました。','ok');}catch(e){status('dailyStatus',e.message,'error');}};
+$('dailyBtn').onclick=async()=>{status('dailyStatus','日別アルバイト別時間表を作成中...');try{if(!Object.keys(dailyLimits||{}).length){try{await loadLimitsCsv();}catch(e){}}const wb=makeDailyWorkbook();XLSX.writeFile(wb,'daily_job_hours_v017.xlsx',{bookType:'xlsx'});status('dailyStatus','日別アルバイト別時間表をダウンロードしました。','ok');}catch(e){status('dailyStatus',e.message,'error');}};
 initTemplate();initLimits();renderPreview();
 </script>
 </body>
